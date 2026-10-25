@@ -1,0 +1,12 @@
+import { Stack } from "expo-router";
+
+export default function StudentLayout() {
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="menu" />
+      <Stack.Screen name="carrito" />
+      <Stack.Screen name="mis-pedidos" />
+    </Stack>
+  );
+}

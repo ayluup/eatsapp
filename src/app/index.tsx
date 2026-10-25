@@ -1,27 +1,8 @@
-import { useRouter } from "expo-router";
-import { useEffect } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { Redirect } from "expo-router";
 
 export default function Index() {
-  const router = useRouter();
-
-  useEffect(() => {
-    // Redirige inmediatamente a la pantalla de Admin al abrir la app
-    router.replace("/admin-menu");
-  }, []);
-
-  return (
-    <View style={styles.container}>
-      <ActivityIndicator size="large" color="#E74C3C" />
-    </View>
-  );
+  // La ruta debe coincidir EXACTAMENTE con el nombre de la carpeta
+  return <Redirect href="/(admin)/menu" />;
+  // Nota: A veces redirect a "/(admin)" falla si no hay un index dentro de admin.
+  // Es más seguro redirigir a una pantalla específica como /menu o /pedidos
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#E8F0F2",
-  },
-});
