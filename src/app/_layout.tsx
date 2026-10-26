@@ -1,11 +1,14 @@
 import { Stack } from "expo-router";
+import { AuthProvider } from "../context/AuthContext";
 
 export default function RootLayout() {
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      {/* No necesitas declarar 'index' explícitamente si usas Redirect, 
-          pero sí debes declarar el grupo (admin) */}
-      <Stack.Screen name="(student)" />
-    </Stack>
+    <AuthProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(student)" />
+        <Stack.Screen name="(admin)" />
+      </Stack>
+    </AuthProvider>
   );
 }

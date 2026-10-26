@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useFocusEffect, useNavigation, useRouter } from "expo-router";
+import { useCallback, useLayoutEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -47,26 +47,20 @@ const STATUS_CONFIG = {
 
 const formatPrice = (p: number) => "$" + p.toLocaleString("es-AR");
 
-// ✅ NUEVA LÓGICA DE ORDENAMIENTO
 const sortOrders = (orders: Order[]) => {
   return [...orders].sort((a, b) => {
-    // 1. Prioridad: Pendiente/Preparando (Arriba) vs Listo (Abajo)
-    // Damos prioridad 1 a los activos y 2 a los listos
     const getPriority = (status: OrderStatus) => (status === "ready" ? 2 : 1);
-
     const priorityA = getPriority(a.estado);
     const priorityB = getPriority(b.estado);
 
     if (priorityA !== priorityB) {
-      return priorityA - priorityB; // Los activos (1) van antes que los listos (2)
+      return priorityA - priorityB;
     }
 
-    // 2. Si tienen la misma prioridad, ordenar por fecha (más reciente primero)
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 };
 
-// Agrupar pedidos por día relativo
 const groupOrdersByDay = (orders: Order[]) => {
   const groups: Record<string, Order[]> = {};
   const today = new Date();
@@ -97,6 +91,11 @@ export default function AdminPedidosScreen() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const router = useRouter();
+  const navigation = useNavigation();
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   useFocusEffect(
     useCallback(() => {
@@ -113,7 +112,6 @@ export default function AdminPedidosScreen() {
 
       if (error) throw error;
 
-      // Limpieza automática de pedidos viejos (más de 1 día)
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const yesterday = new Date(today);
@@ -145,7 +143,6 @@ export default function AdminPedidosScreen() {
 
     setUpdatingId(orderId);
 
-    // Actualizar visualmente al instante
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, estado: newStatus } : o)),
     );
@@ -159,7 +156,6 @@ export default function AdminPedidosScreen() {
       if (error) throw error;
     } catch (err) {
       console.error(err);
-      alert("Error al guardar: ");
     } finally {
       setUpdatingId(null);
     }
@@ -173,7 +169,6 @@ export default function AdminPedidosScreen() {
     );
   }
 
-  // ✅ Aplicar el nuevo ordenamiento
   const sortedOrders = sortOrders(orders);
   const grouped = groupOrdersByDay(sortedOrders);
   const sections = Object.entries(grouped).map(([day, dayOrders]) => ({
@@ -183,18 +178,24 @@ export default function AdminPedidosScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.bgTop} />
+      <View style={styles.bgBottom} />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={28} color="#0F172A" />
+          <Ionicons name="arrow-back" size={26} color="#0F172A" />
         </Pressable>
-        <Text style={styles.title}>Pedidos</Text>
-        <Text style={styles.subtitle}>{orders.length} pedido(s) activo(s)</Text>
+        <Text style={styles.title}>Gestión de Pedidos</Text>
       </View>
 
       {sections.length === 0 ? (
         <View style={styles.empty}>
-          <Ionicons name="receipt-outline" size={48} color="#CBD5E1" />
-          <Text style={styles.emptyText}>No hay pedidos pendientes</Text>
+          <View style={styles.emptyIconBox}>
+            <Ionicons name="receipt-outline" size={48} color="#285c97" />
+          </View>
+          <Text style={styles.emptyTitle}>No hay pedidos pendientes</Text>
+          <Text style={styles.emptyText}>
+            Los nuevos pedidos aparecerán aquí automáticamente
+          </Text>
         </View>
       ) : (
         <FlatList
@@ -309,20 +310,91 @@ export default function AdminPedidosScreen() {
           )}
         />
       )}
+      <View style={styles.floatingNavWrapper}>
+        <View style={styles.floatingNav}>
+          {/* Menú: Inactivo (Gris Outline) */}
+          <Pressable
+            style={styles.navItemInactive}
+            onPress={() => router.push("/(admin)/menu")}
+          >
+            <Ionicons name="restaurant-outline" size={24} color="#94A3B8" />
+            <Text style={styles.navTextInactive}>Menú</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.navItemInactive}
+            onPress={() => router.push("/agregar")}
+          >
+            <Ionicons name="add-circle-outline" size={24} color="#94A3B8" />
+            <Text style={styles.navTextInactive}>Agregar</Text>
+          </Pressable>
+
+          <Pressable style={styles.navItemActive}>
+            <Ionicons name="list" size={24} color="#638ec1" />
+            <Text style={styles.navTextActive}>Pedidos</Text>
+          </Pressable>
+        </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
+  container: { flex: 1 },
+
+  // ✅ FONDO DIFUMINADO IDÉNTICO AL MENÚ
+  bgTop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: "30%",
+    backgroundColor: "#f0e7e2",
+    borderBottomRightRadius: 80,
+    borderBottomLeftRadius: 80,
+    zIndex: 0,
+  },
+  bgBottom: {
+    position: "absolute",
+    top: "48%",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "#F8FAFC",
+    borderTopLeftRadius: 80,
+    borderTopRightRadius: 80,
+    zIndex: 0,
+  },
+
   loading: { flex: 1, justifyContent: "center", alignItems: "center" },
 
-  header: { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 20 },
-  backBtn: { marginBottom: 12 },
-  title: { fontSize: 28, fontWeight: "800", color: "#0F172A" },
+  // ✅ HEADER PERSONALIZADO CON FLECHITA
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 16,
+    zIndex: 1,
+  },
+  backBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#FFF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#0F172A",
+    letterSpacing: -0.5,
+  },
   subtitle: { fontSize: 15, color: "#64748B", marginTop: 4 },
 
-  list: { paddingHorizontal: 16, paddingBottom: 40 },
+  list: { paddingHorizontal: 24, paddingBottom: 140, zIndex: 1 },
   section: { marginBottom: 24 },
   sectionTitle: {
     fontSize: 18,
@@ -337,8 +409,12 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 18,
     marginBottom: 12,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 4,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "#F1F5F9",
   },
   cardHeader: {
     flexDirection: "row",
@@ -388,6 +464,62 @@ const styles = StyleSheet.create({
   btnPreparing: { borderColor: "#BFDBFE" },
   btnReady: { borderColor: "#A7F3D0" },
 
-  empty: { flex: 1, justifyContent: "center", alignItems: "center" },
-  emptyText: { fontSize: 16, color: "#64748B", marginTop: 12 },
+  empty: { flex: 1, justifyContent: "center", alignItems: "center", zIndex: 1 },
+  emptyIconBox: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: "#EFF6FF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#0F172A",
+    marginBottom: 8,
+  },
+  emptyText: { fontSize: 15, color: "#64748B", textAlign: "center" },
+
+  // ✅ BARRA FLOTANTE IDÉNTICA AL MENÚ
+  floatingNavWrapper: {
+    position: "absolute",
+    bottom: 32,
+    left: 24,
+    right: 24,
+    zIndex: 10,
+    alignItems: "center",
+  },
+  floatingNav: {
+    flexDirection: "row",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 32,
+    padding: 8,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 12,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
+  },
+  navItemActive: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  navItemInactive: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  navTextActive: { fontSize: 12, fontWeight: "700", color: "#638ec1" },
+  navTextInactive: { fontSize: 12, fontWeight: "600", color: "#94A3B8" },
 });

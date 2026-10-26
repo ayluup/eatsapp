@@ -1,9 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRouter } from "expo-router";
 import { useEffect, useLayoutEffect, useState } from "react";
+import { Animated } from "react-native";
+import { useAuth } from "../../context/AuthContext";
+import { supabase } from "../../services/supabase";
 
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   Image,
@@ -12,7 +14,6 @@ import {
   Text,
   View,
 } from "react-native";
-import { supabase } from "../../services/supabase";
 
 export type Menu = {
   id: number;
@@ -35,6 +36,11 @@ export default function AdminMenuScreen() {
 
   const router = useRouter();
   const navigation = useNavigation();
+  const { signOut } = useAuth();
+
+  const categoryScale = useState(
+    CATEGORIES.map(() => new Animated.Value(1)),
+  )[0];
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -50,7 +56,6 @@ export default function AdminMenuScreen() {
         .from("menus")
         .select("*")
         .order("created_at", { ascending: false });
-
       if (error) throw error;
       setMenus(data || []);
     } catch (err: any) {
@@ -83,52 +88,83 @@ export default function AdminMenuScreen() {
     ]);
   };
 
-  // Filtramos los items visibles para calcular si está vacío según la categoría
+  const animateCategoryPress = (index: number, callback: () => void) => {
+    Animated.sequence([
+      Animated.timing(categoryScale[index], {
+        toValue: 0.96,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(categoryScale[index], {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start(callback);
+  };
+
   const visibleItems =
     selectedCategory === "Todos"
       ? menus
       : menus.filter((item) => item.categoria === selectedCategory);
 
-  if (loading)
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#10B981" />
-      </View>
-    );
-
   return (
     <View style={styles.container}>
+      <View style={styles.bgTop} />
+      <View style={styles.bgBottom} />
+
       <View style={styles.header}>
-        <Text style={styles.headerSubtitle}>Panel de Administración</Text>
-        <Text style={styles.title}>Gestión de Menú</Text>
+        <View>
+          <Text style={styles.headerSubtitle}>PANEL DE ADMINISTRACIÓN</Text>
+          <Text style={styles.title}>Gestión de Menú</Text>
+        </View>
+        <Pressable
+          style={({ pressed }) => [
+            styles.logoutBtn,
+            pressed && styles.logoutBtnPressed,
+          ]}
+          onPress={async () => {
+            await signOut();
+            router.replace("/(auth)/login");
+          }}
+        >
+          <Ionicons name="log-out-outline" size={22} color="#EF4444" />
+        </Pressable>
       </View>
 
-      {/* ✅ CATEGORÍAS FIJAS CON ESPACIO CONSTANTE DEBAJO */}
       <View style={styles.categoriesRow}>
-        {CATEGORIES.map((cat) => (
-          <Pressable
+        {CATEGORIES.map((cat, index) => (
+          <Animated.View
             key={cat}
-            style={[
-              styles.categoryBtn,
-              selectedCategory === cat && styles.categoryBtnActive,
-            ]}
-            onPress={() => setSelectedCategory(cat)}
+            style={{
+              flex: 1,
+              transform: [{ scale: categoryScale[index] }], // Solo escala, sin translateY
+            }}
           >
-            <Text
+            <Pressable
               style={[
-                styles.categoryText,
-                selectedCategory === cat && styles.categoryTextActive,
+                styles.categoryBtn,
+                selectedCategory === cat && styles.categoryBtnActive,
               ]}
+              onPress={() =>
+                animateCategoryPress(index, () => setSelectedCategory(cat))
+              }
             >
-              {cat}
-            </Text>
-          </Pressable>
+              <Text
+                style={[
+                  styles.categoryText,
+                  selectedCategory === cat && styles.categoryTextActive,
+                ]}
+              >
+                {cat}
+              </Text>
+            </Pressable>
+          </Animated.View>
         ))}
       </View>
 
-      {/* ✅ LISTA CON ListEmptyComponent DINÁMICO */}
       <FlatList
-        data={visibleItems} // Usamos la data ya filtrada
+        data={visibleItems}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
@@ -138,7 +174,7 @@ export default function AdminMenuScreen() {
             <Pressable
               style={({ pressed }) => [
                 styles.card,
-                { opacity: pressed ? 0.95 : 1 },
+                pressed && styles.cardPressed,
               ]}
               onPress={() => router.push(`/editar?id=${item.id}`)}
             >
@@ -156,38 +192,53 @@ export default function AdminMenuScreen() {
                   {item.descripcion || "Sin descripción"}
                 </Text>
                 <Text style={styles.price}>{formatPrice(item.precio)}</Text>
-                <Text style={styles.catBadge}>{item.categoria}</Text>
-                <View
-                  style={[
-                    styles.stockBadgeBottom,
-                    item.disponible ? styles.inStock : styles.outOfStock,
-                  ]}
-                >
-                  <Text style={styles.stockTextBottom}>
-                    {item.disponible ? "En Stock" : "Agotado"}
-                  </Text>
+                <View style={styles.badgesRow}>
+                  <Text style={styles.catBadge}>{item.categoria}</Text>
+                  <View
+                    style={[
+                      styles.stockBadge,
+                      item.disponible ? styles.inStock : styles.outOfStock,
+                    ]}
+                  >
+                    <Ionicons
+                      name={
+                        item.disponible ? "checkmark-circle" : "close-circle"
+                      }
+                      size={12}
+                      color={item.disponible ? "#059669" : "#DC2626"}
+                    />
+                    <Text
+                      style={[
+                        styles.stockText,
+                        item.disponible
+                          ? styles.inStockText
+                          : styles.outOfStockText,
+                      ]}
+                    >
+                      {item.disponible ? "En Stock" : "Agotado"}
+                    </Text>
+                  </View>
                 </View>
               </View>
               <Pressable
                 style={({ pressed }) => [
                   styles.deleteBtn,
-                  { opacity: pressed ? 0.4 : 0.7 },
+                  pressed && styles.deleteBtnPressed,
                 ]}
                 onPress={(e) => {
                   e.stopPropagation();
                   handleDelete(item.id);
                 }}
               >
-                <Ionicons name="trash-outline" size={24} color="#334155" />
+                <Ionicons name="trash-outline" size={22} color="#64748B" />
               </Pressable>
             </Pressable>
           );
         }}
-        // ✅ MENSAJE DINÁMICO SEGÚN LA CATEGORÍA SELECCIONADA
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconBox}>
-              <Ionicons name="fast-food-outline" size={40} color="#10B981" />
+              <Ionicons name="fast-food-outline" size={56} color="#285c97" />
             </View>
             <Text style={styles.emptyTitle}>
               {selectedCategory === "Todos"
@@ -205,78 +256,133 @@ export default function AdminMenuScreen() {
         onRefresh={fetchMenus}
       />
 
-      <View style={styles.bottomNav}>
-        <Pressable style={styles.navItemActive}>
-          <Ionicons name="restaurant-outline" size={24} color="#10B981" />
-          <Text style={styles.navTextActive}>Menú</Text>
-        </Pressable>
-
-        <Pressable
-          style={styles.navItemInactive}
-          onPress={() => router.push("/agregar")}
-        >
-          <Ionicons name="add-circle-outline" size={24} color="#94A3B8" />
-          <Text style={styles.navTextInactive}>Agregar</Text>
-        </Pressable>
-
-        <Pressable
-          style={styles.navItemInactive}
-          onPress={() => router.push("/(admin)/pedidos")}
-        >
-          <Ionicons name="list-outline" size={24} color="#94A3B8" />
-          <Text style={styles.navTextInactive}>Pedidos</Text>
-        </Pressable>
+      <View style={styles.floatingNavWrapper}>
+        <View style={styles.floatingNav}>
+          <Pressable style={styles.navItemActive}>
+            <Ionicons name="restaurant" size={24} color="#638ec1" />
+            <Text style={styles.navTextActive}>Menú</Text>
+          </Pressable>
+          <Pressable
+            style={styles.navItemInactive}
+            onPress={() => router.push("/agregar")}
+          >
+            <Ionicons name="add-circle" size={24} color="#94A3B8" />
+            <Text style={styles.navTextInactive}>Agregar</Text>
+          </Pressable>
+          <Pressable
+            style={styles.navItemInactive}
+            onPress={() => router.push("/(admin)/pedidos")}
+          >
+            <Ionicons name="list" size={24} color="#94A3B8" />
+            <Text style={styles.navTextInactive}>Pedidos</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
+  container: { flex: 1 },
+  bgTop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: "30%",
+    backgroundColor: "#f0e7e2",
+    borderBottomRightRadius: 80,
+    borderBottomLeftRadius: 80,
+    zIndex: 0,
+  },
+  bgBottom: {
+    position: "absolute",
+    top: "48%",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "#F8FAFC",
+    borderTopLeftRadius: 80,
+    borderTopRightRadius: 80,
+    zIndex: 0,
+  },
+
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#F8FAFC",
   },
-
-  header: { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 10 },
-  headerSubtitle: {
-    fontSize: 13,
-    color: "#64748B",
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: "48%",
+    backgroundColor: "#E2E8F0",
+    borderBottomRightRadius: 80,
+    borderBottomLeftRadius: 20,
+    zIndex: 0,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 15,
     fontWeight: "600",
+    color: "#64748B",
+    letterSpacing: 0.3,
+    zIndex: 1,
+  },
+
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 16,
+    zIndex: 1,
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: "#64748B",
+    fontWeight: "700",
     textTransform: "uppercase",
-    letterSpacing: 0.8,
+    letterSpacing: 1.2,
     marginBottom: 4,
   },
   title: {
     fontSize: 28,
     fontWeight: "800",
     color: "#0F172A",
-    letterSpacing: -0.3,
+    letterSpacing: -0.5,
   },
+  logoutBtn: { padding: 10, borderRadius: 12, backgroundColor: "#FEF2F2" },
+  logoutBtnPressed: { opacity: 0.7, transform: [{ scale: 0.95 }] },
 
-  // ✅ CATEGORÍAS FIJAS SIN SCROLL
   categoriesRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 24,
-    paddingVertical: 12, // Espacio vertical fijo
+    paddingVertical: 16,
     gap: 8,
+    zIndex: 1,
   },
   categoryBtn: {
-    flex: 1,
-    height: 36,
+    height: 38,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 18,
+    borderRadius: 19,
     backgroundColor: "#FFF",
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
   categoryBtnActive: {
-    backgroundColor: "#456b7b",
-    borderColor: "#456b7b",
+    backgroundColor: "#289397cb",
+    borderColor: "transparent",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   categoryText: { fontSize: 13, fontWeight: "600", color: "#64748B" },
   categoryTextActive: { color: "#FFF", fontWeight: "700" },
@@ -284,8 +390,9 @@ const styles = StyleSheet.create({
   list: {
     paddingHorizontal: 24,
     paddingTop: 8,
-    paddingBottom: 100,
+    paddingBottom: 140,
     alignItems: "center",
+    zIndex: 1,
   },
   card: {
     width: "100%",
@@ -297,102 +404,126 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     alignItems: "center",
     shadowColor: "#0F172A",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
     borderWidth: 1,
     borderColor: "#F1F5F9",
   },
+  cardPressed: { transform: [{ scale: 0.98 }], opacity: 0.95 },
 
   imageContainer: { marginRight: 16 },
   productImage: {
     width: 72,
     height: 72,
-    borderRadius: 14,
+    borderRadius: 16,
     backgroundColor: "#F1F5F9",
   },
 
   info: { flex: 1, paddingRight: 6 },
-  name: { fontSize: 16, fontWeight: "700", color: "#0F172A", marginBottom: 3 },
-  desc: { fontSize: 12, color: "#64748B", lineHeight: 16, marginBottom: 6 },
-  price: { fontSize: 17, fontWeight: "800", color: "#10B981", marginBottom: 4 },
+  name: { fontSize: 16, fontWeight: "700", color: "#0F172A", marginBottom: 4 },
+  desc: { fontSize: 13, color: "#64748B", lineHeight: 18, marginBottom: 8 },
+  price: { fontSize: 18, fontWeight: "800", color: "#4679d2", marginBottom: 8 },
 
+  badgesRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
   catBadge: {
     fontSize: 11,
     fontWeight: "600",
-    color: "#64748B",
+    color: "#475569",
     backgroundColor: "#F1F5F9",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    alignSelf: "flex-start",
-    marginBottom: 6,
-  },
-
-  stockBadgeBottom: {
-    alignSelf: "flex-start",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
   },
-  inStock: { backgroundColor: "#10B981" },
-  outOfStock: { backgroundColor: "#EF4444" },
-  stockTextBottom: { color: "#fff", fontSize: 10, fontWeight: "700" },
-  deleteBtn: { padding: 8 },
+  stockBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  inStock: { backgroundColor: "#ECFDF5" },
+  outOfStock: { backgroundColor: "#FEF2F2" },
+  stockText: { fontSize: 11, fontWeight: "700" },
+  inStockText: { color: "#059669" },
+  outOfStockText: { color: "#DC2626" },
 
-  emptyContainer: { alignItems: "center", marginTop: 60, padding: 20 },
+  deleteBtn: { padding: 8, borderRadius: 10 },
+  deleteBtnPressed: { backgroundColor: "#F1F5F9", transform: [{ scale: 0.9 }] },
+
+  emptyContainer: {
+    alignItems: "center",
+    marginTop: 80,
+    padding: 24,
+    zIndex: 1,
+  },
   emptyIconBox: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    backgroundColor: "#ECFDF5",
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: "#EFF6FF",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 20,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 20,
+    fontWeight: "800",
     color: "#0F172A",
-    marginBottom: 6,
+    marginBottom: 8,
+    textAlign: "center",
   },
   emptyText: {
-    fontSize: 14,
+    fontSize: 15,
     color: "#64748B",
     textAlign: "center",
-    maxWidth: 240,
-    lineHeight: 20,
+    maxWidth: 260,
+    lineHeight: 22,
   },
 
-  bottomNav: {
+  floatingNavWrapper: {
     position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
+    bottom: 32,
+    left: 24,
+    right: 24,
+    zIndex: 10,
+    alignItems: "center",
+  },
+  floatingNav: {
     flexDirection: "row",
     backgroundColor: "#FFFFFF",
-    borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
-    paddingBottom: 25,
-    paddingTop: 12,
-    paddingHorizontal: 20,
+    borderRadius: 32,
+    padding: 8,
     shadowColor: "#0F172A",
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 12,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
   },
   navItemActive: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
+    paddingVertical: 12,
+    borderRadius: 24,
   },
   navItemInactive: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
+    paddingVertical: 12,
+    borderRadius: 24,
   },
-  navTextActive: { fontSize: 12, fontWeight: "700", color: "#10B981" },
+  navTextActive: { fontSize: 12, fontWeight: "700", color: "#638ec1" },
   navTextInactive: { fontSize: 12, fontWeight: "600", color: "#94A3B8" },
 });
