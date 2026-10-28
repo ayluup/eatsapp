@@ -14,6 +14,8 @@ import {
   Text,
   View,
 } from "react-native";
+import { ThemeColors } from "../../constants/theme";
+import { useThemedStyles } from "../../hooks/use-themed-styles";
 
 export type Menu = {
   id: number;
@@ -30,13 +32,14 @@ const formatPrice = (price: number) => "$" + price.toLocaleString("es-AR");
 const CATEGORIES = ["Todos", "Comida", "Gaseosas", "Bebidas"];
 
 export default function AdminMenuScreen() {
+  const { colors: c, styles } = useThemedStyles(createStyles);
   const [menus, setMenus] = useState<Menu[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("Todos");
 
   const router = useRouter();
   const navigation = useNavigation();
-  const { signOut } = useAuth();
+  const { signOut, role } = useAuth();
 
   const categoryScale = useState(
     CATEGORIES.map(() => new Animated.Value(1)),
@@ -125,10 +128,9 @@ export default function AdminMenuScreen() {
           ]}
           onPress={async () => {
             await signOut();
-            router.replace("/(auth)/login");
           }}
         >
-          <Ionicons name="log-out-outline" size={22} color="#EF4444" />
+          <Ionicons name="log-out-outline" size={22} color={c.danger} />
         </Pressable>
       </View>
 
@@ -205,7 +207,7 @@ export default function AdminMenuScreen() {
                         item.disponible ? "checkmark-circle" : "close-circle"
                       }
                       size={12}
-                      color={item.disponible ? "#059669" : "#DC2626"}
+                      color={item.disponible ? c.successStrong : c.dangerStrong}
                     />
                     <Text
                       style={[
@@ -230,7 +232,7 @@ export default function AdminMenuScreen() {
                   handleDelete(item.id);
                 }}
               >
-                <Ionicons name="trash-outline" size={22} color="#64748B" />
+                <Ionicons name="trash-outline" size={22} color={c.textSecondary} />
               </Pressable>
             </Pressable>
           );
@@ -238,7 +240,7 @@ export default function AdminMenuScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconBox}>
-              <Ionicons name="fast-food-outline" size={56} color="#285c97" />
+              <Ionicons name="fast-food-outline" size={56} color={c.accentStrong} />
             </View>
             <Text style={styles.emptyTitle}>
               {selectedCategory === "Todos"
@@ -259,22 +261,39 @@ export default function AdminMenuScreen() {
       <View style={styles.floatingNavWrapper}>
         <View style={styles.floatingNav}>
           <Pressable style={styles.navItemActive}>
-            <Ionicons name="restaurant" size={24} color="#638ec1" />
+            <Ionicons name="restaurant" size={24} color={c.accent} />
             <Text style={styles.navTextActive}>Menú</Text>
           </Pressable>
           <Pressable
             style={styles.navItemInactive}
             onPress={() => router.push("/agregar")}
           >
-            <Ionicons name="add-circle" size={24} color="#94A3B8" />
+            <Ionicons name="add-circle" size={24} color={c.textMuted} />
             <Text style={styles.navTextInactive}>Agregar</Text>
           </Pressable>
           <Pressable
             style={styles.navItemInactive}
             onPress={() => router.push("/(admin)/pedidos")}
           >
-            <Ionicons name="list" size={24} color="#94A3B8" />
+            <Ionicons name="list" size={24} color={c.textMuted} />
             <Text style={styles.navTextInactive}>Pedidos</Text>
+          </Pressable>
+
+          {role === "superadmin" && (
+            <Pressable
+              style={styles.navItemInactive}
+              onPress={() => router.push("/(admin)/usuarios")}
+            >
+              <Ionicons name="people-outline" size={24} color={c.textMuted} />
+              <Text style={styles.navTextInactive}>Usuarios</Text>
+            </Pressable>
+          )}
+          <Pressable
+            style={styles.navItemInactive}
+            onPress={() => router.push("/(admin)/perfil")}
+          >
+            <Ionicons name="person-circle-outline" size={24} color={c.textMuted} />
+            <Text style={styles.navTextInactive}>Perfil</Text>
           </Pressable>
         </View>
       </View>
@@ -282,7 +301,7 @@ export default function AdminMenuScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1 },
   bgTop: {
     position: "absolute",
@@ -290,7 +309,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: "30%",
-    backgroundColor: "#f0e7e2",
+    backgroundColor: c.decorAdmin,
     borderBottomRightRadius: 80,
     borderBottomLeftRadius: 80,
     zIndex: 0,
@@ -301,7 +320,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: c.surfaceAlt,
     borderTopLeftRadius: 80,
     borderTopRightRadius: 80,
     zIndex: 0,
@@ -311,7 +330,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: c.surfaceAlt,
   },
   loadingOverlay: {
     position: "absolute",
@@ -319,7 +338,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: "48%",
-    backgroundColor: "#E2E8F0",
+    backgroundColor: c.border,
     borderBottomRightRadius: 80,
     borderBottomLeftRadius: 20,
     zIndex: 0,
@@ -328,7 +347,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 15,
     fontWeight: "600",
-    color: "#64748B",
+    color: c.textSecondary,
     letterSpacing: 0.3,
     zIndex: 1,
   },
@@ -344,7 +363,7 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 12,
-    color: "#64748B",
+    color: c.textSecondary,
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 1.2,
@@ -353,10 +372,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#0F172A",
+    color: c.text,
     letterSpacing: -0.5,
   },
-  logoutBtn: { padding: 10, borderRadius: 12, backgroundColor: "#FEF2F2" },
+  logoutBtn: { padding: 10, borderRadius: 12, backgroundColor: c.dangerSoft },
   logoutBtnPressed: { opacity: 0.7, transform: [{ scale: 0.95 }] },
 
   categoriesRow: {
@@ -372,9 +391,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 19,
-    backgroundColor: "#FFF",
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: c.border,
   },
   categoryBtnActive: {
     backgroundColor: "#289397cb",
@@ -384,8 +403,8 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  categoryText: { fontSize: 13, fontWeight: "600", color: "#64748B" },
-  categoryTextActive: { color: "#FFF", fontWeight: "700" },
+  categoryText: { fontSize: 13, fontWeight: "600", color: c.textSecondary },
+  categoryTextActive: { color: c.onAccent, fontWeight: "700" },
 
   list: {
     paddingHorizontal: 24,
@@ -398,17 +417,17 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 320,
     flexDirection: "row",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.surface,
     borderRadius: 20,
     padding: 18,
     marginBottom: 14,
     alignItems: "center",
-    shadowColor: "#0F172A",
+    shadowColor: c.shadow,
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 4,
     borderWidth: 1,
-    borderColor: "#F1F5F9",
+    borderColor: c.borderSoft,
   },
   cardPressed: { transform: [{ scale: 0.98 }], opacity: 0.95 },
 
@@ -417,13 +436,13 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 16,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: c.surfaceMuted,
   },
 
   info: { flex: 1, paddingRight: 6 },
-  name: { fontSize: 16, fontWeight: "700", color: "#0F172A", marginBottom: 4 },
-  desc: { fontSize: 13, color: "#64748B", lineHeight: 18, marginBottom: 8 },
-  price: { fontSize: 18, fontWeight: "800", color: "#4679d2", marginBottom: 8 },
+  name: { fontSize: 16, fontWeight: "700", color: c.text, marginBottom: 4 },
+  desc: { fontSize: 13, color: c.textSecondary, lineHeight: 18, marginBottom: 8 },
+  price: { fontSize: 18, fontWeight: "800", color: c.accentStrong, marginBottom: 8 },
 
   badgesRow: {
     flexDirection: "row",
@@ -434,8 +453,8 @@ const styles = StyleSheet.create({
   catBadge: {
     fontSize: 11,
     fontWeight: "600",
-    color: "#475569",
-    backgroundColor: "#F1F5F9",
+    color: c.textBody,
+    backgroundColor: c.surfaceMuted,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
@@ -448,14 +467,14 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 6,
   },
-  inStock: { backgroundColor: "#ECFDF5" },
-  outOfStock: { backgroundColor: "#FEF2F2" },
+  inStock: { backgroundColor: c.successSoft },
+  outOfStock: { backgroundColor: c.dangerSoft },
   stockText: { fontSize: 11, fontWeight: "700" },
-  inStockText: { color: "#059669" },
-  outOfStockText: { color: "#DC2626" },
+  inStockText: { color: c.successStrong },
+  outOfStockText: { color: c.dangerStrong },
 
   deleteBtn: { padding: 8, borderRadius: 10 },
-  deleteBtnPressed: { backgroundColor: "#F1F5F9", transform: [{ scale: 0.9 }] },
+  deleteBtnPressed: { backgroundColor: c.surfaceMuted, transform: [{ scale: 0.9 }] },
 
   emptyContainer: {
     alignItems: "center",
@@ -467,7 +486,7 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: c.infoSoft,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 20,
@@ -475,13 +494,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#0F172A",
+    color: c.text,
     marginBottom: 8,
     textAlign: "center",
   },
   emptyText: {
     fontSize: 15,
-    color: "#64748B",
+    color: c.textSecondary,
     textAlign: "center",
     maxWidth: 260,
     lineHeight: 22,
@@ -497,16 +516,16 @@ const styles = StyleSheet.create({
   },
   floatingNav: {
     flexDirection: "row",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.surface,
     borderRadius: 32,
     padding: 8,
-    shadowColor: "#0F172A",
+    shadowColor: c.shadow,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.12,
     shadowRadius: 24,
     elevation: 12,
     borderWidth: 1,
-    borderColor: "#F1F5F9",
+    borderColor: c.borderSoft,
   },
   navItemActive: {
     flex: 1,
@@ -524,6 +543,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 24,
   },
-  navTextActive: { fontSize: 12, fontWeight: "700", color: "#638ec1" },
-  navTextInactive: { fontSize: 12, fontWeight: "600", color: "#94A3B8" },
+  navTextActive: { fontSize: 12, fontWeight: "700", color: c.accent },
+  navTextInactive: { fontSize: 12, fontWeight: "600", color: c.textMuted },
 });

@@ -9,7 +9,10 @@ import {
   Text,
   View,
 } from "react-native";
+import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../services/supabase";
+import { ThemeColors } from "../../constants/theme";
+import { useThemedStyles } from "../../hooks/use-themed-styles";
 
 type OrderStatus = "pending" | "preparing" | "ready";
 
@@ -22,7 +25,7 @@ type OrderItem = {
 type Order = {
   id: string;
   id_pedido: string;
-  session_id: string;
+  user_id: string;
   items: OrderItem[];
   total: number;
   metodo_pago: "mp" | "efectivo";
@@ -30,23 +33,24 @@ type Order = {
   created_at: string;
 };
 
+// Colores del tema (ver constants/theme.ts)
 const STATUS_CONFIG = {
   pending: {
     label: "Pendiente",
-    color: "#F59E0B",
-    bg: "#FEF3C7",
+    color: "warning" as const,
+    bg: "warningSoft" as const,
     icon: "time-outline" as const,
   },
   preparing: {
     label: "En preparación",
-    color: "#3B82F6",
-    bg: "#EFF6FF",
+    color: "info" as const,
+    bg: "infoSoft" as const,
     icon: "flame-outline" as const,
   },
   ready: {
     label: "¡Listo!",
-    color: "#10B981",
-    bg: "#ECFDF5",
+    color: "success" as const,
+    bg: "successSoft" as const,
     icon: "checkmark-circle-outline" as const,
   },
 };
@@ -77,9 +81,11 @@ const groupOrdersByDay = (orders: Order[]) => {
 };
 
 export default function StudentMisPedidosScreen() {
+  const { colors: c, styles } = useThemedStyles(createStyles);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { user } = useAuth();
 
   useFocusEffect(
     useCallback(() => {
@@ -92,6 +98,7 @@ export default function StudentMisPedidosScreen() {
       const { data, error } = await supabase
         .from("pedidos")
         .select("*")
+        .eq("user_id", user?.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
 
@@ -115,7 +122,7 @@ export default function StudentMisPedidosScreen() {
   if (loading)
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#638ec1" />
+        <ActivityIndicator size="large" color={c.accent} />
       </View>
     );
 
@@ -141,7 +148,7 @@ export default function StudentMisPedidosScreen() {
 
       {sections.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="receipt-outline" size={48} color="#CBD5E1" />
+          <Ionicons name="receipt-outline" size={48} color={c.textFaint} />
           <Text style={styles.emptyTitle}>No tenés pedidos recientes</Text>
           <Text style={styles.emptyText}>
             Cuando hagas un pedido aparecerá aquí automáticamente
@@ -173,16 +180,16 @@ export default function StudentMisPedidosScreen() {
                       <View
                         style={[
                           styles.statusBadge,
-                          { backgroundColor: config.bg },
+                          { backgroundColor: c[config.bg] },
                         ]}
                       >
                         <Ionicons
                           name={config.icon}
                           size={14}
-                          color={config.color}
+                          color={c[config.color]}
                         />
                         <Text
-                          style={[styles.statusText, { color: config.color }]}
+                          style={[styles.statusText, { color: c[config.color] }]}
                         >
                           {config.label}
                         </Text>
@@ -223,7 +230,7 @@ export default function StudentMisPedidosScreen() {
             style={styles.navItemInactive}
             onPress={() => router.push("/(student)/menu")}
           >
-            <Ionicons name="restaurant-outline" size={24} color="#94A3B8" />
+            <Ionicons name="restaurant-outline" size={24} color={c.textMuted} />
             <Text style={styles.navTextInactive}>Menú</Text>
           </Pressable>
 
@@ -232,14 +239,21 @@ export default function StudentMisPedidosScreen() {
             style={styles.navItemInactive}
             onPress={() => router.push("/(student)/carrito")}
           >
-            <Ionicons name="cart-outline" size={24} color="#94A3B8" />
+            <Ionicons name="cart-outline" size={24} color={c.textMuted} />
             <Text style={styles.navTextInactive}>Carrito</Text>
           </Pressable>
 
           {/* Pedidos: ACTIVO (Blanco con texto Azul) */}
           <Pressable style={styles.navItemActive}>
-            <Ionicons name="list" size={24} color="#638ec1" />
+            <Ionicons name="list" size={24} color={c.accent} />
             <Text style={styles.navTextActive}>Pedidos</Text>
+          </Pressable>
+          <Pressable
+            style={styles.navItemInactive}
+            onPress={() => router.push("/(student)/perfil")}
+          >
+            <Ionicons name="person-circle-outline" size={24} color={c.textMuted} />
+            <Text style={styles.navTextInactive}>Perfil</Text>
           </Pressable>
         </View>
       </View>
@@ -247,7 +261,7 @@ export default function StudentMisPedidosScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1 },
 
   // ✅ FONDO DIFUMINADO IDÉNTICO A STUDENT MENU
@@ -257,7 +271,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: "30%",
-    backgroundColor: "#e2ecf0",
+    backgroundColor: c.decorStudent,
     borderBottomRightRadius: 80,
     borderBottomLeftRadius: 80,
     zIndex: 0,
@@ -268,7 +282,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: c.surfaceAlt,
     borderTopLeftRadius: 80,
     borderTopRightRadius: 80,
     zIndex: 0,
@@ -285,33 +299,33 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#0F172A",
+    color: c.text,
     letterSpacing: -0.5,
   },
-  subtitle: { fontSize: 15, color: "#64748B", marginTop: 4 },
+  subtitle: { fontSize: 15, color: c.textSecondary, marginTop: 4 },
 
   list: { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 140, zIndex: 1 },
   section: { width: "100%", marginBottom: 24 },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#0F172A",
+    color: c.text,
     marginBottom: 12,
     marginLeft: 4,
   },
 
   // TARJETAS ELEVADAS ESTILO STUDENT MENU
   card: {
-    backgroundColor: "#FFF",
+    backgroundColor: c.surface,
     borderRadius: 20,
     padding: 18,
     marginBottom: 12,
-    shadowColor: "#0F172A",
+    shadowColor: c.shadow,
     shadowOpacity: 0.06,
     shadowRadius: 12,
     elevation: 4,
     borderWidth: 1,
-    borderColor: "#F1F5F9",
+    borderColor: c.borderSoft,
   },
 
   info: { flex: 1 },
@@ -321,8 +335,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 10,
   },
-  orderId: { fontSize: 16, fontWeight: "800", color: "#0F172A" },
-  paymentMethod: { fontSize: 13, color: "#64748B", fontWeight: "600" },
+  orderId: { fontSize: 16, fontWeight: "800", color: c.text },
+  paymentMethod: { fontSize: 13, color: c.textSecondary, fontWeight: "600" },
 
   statusBadge: {
     flexDirection: "row",
@@ -337,11 +351,11 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 12, fontWeight: "700" },
 
   itemsPreview: { marginBottom: 14 },
-  itemText: { fontSize: 14, color: "#334155", marginBottom: 3 },
-  moreItems: { fontSize: 13, color: "#94A3B8", fontStyle: "italic" },
+  itemText: { fontSize: 14, color: c.textBody, marginBottom: 3 },
+  moreItems: { fontSize: 13, color: c.textMuted, fontStyle: "italic" },
 
-  cardFooter: { borderTopWidth: 1, borderTopColor: "#F1F5F9", paddingTop: 12 },
-  total: { fontSize: 18, fontWeight: "800", color: "#638ec1" }, // Color azul corporativo
+  cardFooter: { borderTopWidth: 1, borderTopColor: c.borderSoft, paddingTop: 12 },
+  total: { fontSize: 18, fontWeight: "800", color: c.accent }, // Color azul corporativo
 
   emptyContainer: {
     alignItems: "center",
@@ -352,12 +366,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#0F172A",
+    color: c.text,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 15,
-    color: "#64748B",
+    color: c.textSecondary,
     textAlign: "center",
     maxWidth: 260,
     lineHeight: 22,
@@ -374,16 +388,16 @@ const styles = StyleSheet.create({
   },
   floatingNav: {
     flexDirection: "row",
-    backgroundColor: "#ffffff",
+    backgroundColor: c.surface,
     borderRadius: 32,
     padding: 8,
-    shadowColor: "#0F172A",
+    shadowColor: c.shadow,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.12,
     shadowRadius: 24,
     elevation: 12,
     borderWidth: 1,
-    borderColor: "#F1F5F9",
+    borderColor: c.borderSoft,
   },
 
   navItemActive: {
@@ -393,9 +407,9 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingVertical: 12,
     borderRadius: 24,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: "#ffffff",
+    borderColor: c.surface,
   },
   navItemInactive: {
     flex: 1,
@@ -406,6 +420,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
 
-  navTextActive: { color: "#638ec1", fontSize: 12, fontWeight: "800" },
-  navTextInactive: { fontSize: 12, fontWeight: "600", color: "#94A3B8" },
+  navTextActive: { color: c.accent, fontSize: 12, fontWeight: "800" },
+  navTextInactive: { fontSize: 12, fontWeight: "600", color: c.textMuted },
 });

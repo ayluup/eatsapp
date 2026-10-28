@@ -3,20 +3,24 @@ import { useFocusEffect, useNavigation, useRouter } from "expo-router";
 import { useCallback, useLayoutEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../services/supabase";
+import { ThemeColors } from "../../constants/theme";
+import { useThemedStyles } from "../../hooks/use-themed-styles";
 
 type OrderStatus = "pending" | "preparing" | "ready";
 
 type Order = {
   id: string;
   id_pedido: string;
-  session_id: string;
+  user_id: string;
   items: any[];
   total: number;
   metodo_pago: "mp" | "efectivo";
@@ -24,23 +28,24 @@ type Order = {
   created_at: string;
 };
 
+// Colores del tema (ver constants/theme.ts)
 const STATUS_CONFIG = {
   pending: {
     label: "Pendiente",
-    color: "#F59E0B",
-    bg: "#FEF3C7",
+    color: "warning" as const,
+    bg: "warningSoft" as const,
     icon: "time-outline" as const,
   },
   preparing: {
     label: "En preparación",
-    color: "#3B82F6",
-    bg: "#EFF6FF",
+    color: "info" as const,
+    bg: "infoSoft" as const,
     icon: "flame-outline" as const,
   },
   ready: {
     label: "¡Listo!",
-    color: "#10B981",
-    bg: "#ECFDF5",
+    color: "success" as const,
+    bg: "successSoft" as const,
     icon: "checkmark-circle-outline" as const,
   },
 };
@@ -86,11 +91,14 @@ const groupOrdersByDay = (orders: Order[]) => {
 };
 
 export default function AdminPedidosScreen() {
+  const { colors: c, styles } = useThemedStyles(createStyles);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const router = useRouter();
+
+  const { role } = useAuth();
   const navigation = useNavigation();
 
   useLayoutEffect(() => {
@@ -105,34 +113,39 @@ export default function AdminPedidosScreen() {
 
   const fetchOrders = async () => {
     try {
+      const desde = new Date();
+      desde.setHours(0, 0, 0, 0);
+      desde.setDate(desde.getDate() - 1); // ayer 00:00
+
       const { data, error } = await supabase
         .from("pedidos")
-        .select("*")
-        .order("created_at", { ascending: false });
+        .select(
+          "id, id_pedido, user_id, items, total, metodo_pago, estado, created_at",
+        )
+        .gte("created_at", desde.toISOString())
+        .order("created_at", { ascending: false })
+        .limit(50);
 
       if (error) throw error;
+      setOrders((data ?? []) as Order[]);
+    } catch (err: any) {
+      // warn en vez de error: no dispara la pantalla roja en dev
+      console.warn(
+        "Error fetching orders:",
+        err?.code,
+        err?.message,
+        err?.details,
+      );
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
-
-      const validOrders = (data || []).filter((o: Order) => {
-        const d = new Date(o.created_at);
-        return d >= yesterday;
-      });
-
-      const oldIds = (data || [])
-        .filter((o: Order) => !validOrders.includes(o))
-        .map((o: Order) => o.id);
-
-      if (oldIds.length > 0) {
-        await supabase.from("pedidos").delete().in("id", oldIds);
+      if (err?.code === "57014" || err?.message?.includes("timeout")) {
+        Alert.alert(
+          "Tardó demasiado",
+          "No pudimos cargar los pedidos. ¿Querés intentar de nuevo?",
+          [{ text: "Reintentar", onPress: fetchOrders }, { text: "Cancelar" }],
+        );
+      } else {
+        Alert.alert("Error", "No se pudieron cargar los pedidos");
       }
-
-      setOrders(validOrders);
-    } catch (err) {
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -164,7 +177,7 @@ export default function AdminPedidosScreen() {
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#10B981" />
+        <ActivityIndicator size="large" color={c.success} />
       </View>
     );
   }
@@ -182,7 +195,7 @@ export default function AdminPedidosScreen() {
       <View style={styles.bgBottom} />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={26} color="#0F172A" />
+          <Ionicons name="arrow-back" size={26} color={c.text} />
         </Pressable>
         <Text style={styles.title}>Gestión de Pedidos</Text>
       </View>
@@ -190,7 +203,7 @@ export default function AdminPedidosScreen() {
       {sections.length === 0 ? (
         <View style={styles.empty}>
           <View style={styles.emptyIconBox}>
-            <Ionicons name="receipt-outline" size={48} color="#285c97" />
+            <Ionicons name="receipt-outline" size={48} color={c.accentStrong} />
           </View>
           <Text style={styles.emptyTitle}>No hay pedidos pendientes</Text>
           <Text style={styles.emptyText}>
@@ -224,16 +237,16 @@ export default function AdminPedidosScreen() {
                     <View
                       style={[
                         styles.statusBadge,
-                        { backgroundColor: config.bg },
+                        { backgroundColor: c[config.bg] },
                       ]}
                     >
                       <Ionicons
                         name={config.icon}
                         size={14}
-                        color={config.color}
+                        color={c[config.color]}
                       />
                       <Text
-                        style={[styles.statusText, { color: config.color }]}
+                        style={[styles.statusText, { color: c[config.color] }]}
                       >
                         {config.label}
                       </Text>
@@ -269,12 +282,12 @@ export default function AdminPedidosScreen() {
                             disabled={isUpdating}
                           >
                             {isUpdating ? (
-                              <ActivityIndicator size="small" color="#3B82F6" />
+                              <ActivityIndicator size="small" color={c.info} />
                             ) : (
                               <Ionicons
                                 name="flame-outline"
                                 size={18}
-                                color="#3B82F6"
+                                color={c.info}
                               />
                             )}
                           </Pressable>
@@ -291,12 +304,12 @@ export default function AdminPedidosScreen() {
                             disabled={isUpdating}
                           >
                             {isUpdating ? (
-                              <ActivityIndicator size="small" color="#10B981" />
+                              <ActivityIndicator size="small" color={c.success} />
                             ) : (
                               <Ionicons
                                 name="checkmark-circle-outline"
                                 size={18}
-                                color="#10B981"
+                                color={c.success}
                               />
                             )}
                           </Pressable>
@@ -317,7 +330,7 @@ export default function AdminPedidosScreen() {
             style={styles.navItemInactive}
             onPress={() => router.push("/(admin)/menu")}
           >
-            <Ionicons name="restaurant-outline" size={24} color="#94A3B8" />
+            <Ionicons name="restaurant-outline" size={24} color={c.textMuted} />
             <Text style={styles.navTextInactive}>Menú</Text>
           </Pressable>
 
@@ -325,13 +338,30 @@ export default function AdminPedidosScreen() {
             style={styles.navItemInactive}
             onPress={() => router.push("/agregar")}
           >
-            <Ionicons name="add-circle-outline" size={24} color="#94A3B8" />
+            <Ionicons name="add-circle-outline" size={24} color={c.textMuted} />
             <Text style={styles.navTextInactive}>Agregar</Text>
           </Pressable>
 
           <Pressable style={styles.navItemActive}>
-            <Ionicons name="list" size={24} color="#638ec1" />
+            <Ionicons name="list" size={24} color={c.accent} />
             <Text style={styles.navTextActive}>Pedidos</Text>
+          </Pressable>
+
+          {role === "superadmin" && (
+            <Pressable
+              style={styles.navItemInactive}
+              onPress={() => router.push("/(admin)/usuarios")}
+            >
+              <Ionicons name="people-outline" size={24} color={c.textMuted} />
+              <Text style={styles.navTextInactive}>Usuarios</Text>
+            </Pressable>
+          )}
+          <Pressable
+            style={styles.navItemInactive}
+            onPress={() => router.push("/(admin)/perfil")}
+          >
+            <Ionicons name="person-circle-outline" size={24} color={c.textMuted} />
+            <Text style={styles.navTextInactive}>Perfil</Text>
           </Pressable>
         </View>
       </View>
@@ -339,7 +369,7 @@ export default function AdminPedidosScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1 },
 
   // ✅ FONDO DIFUMINADO IDÉNTICO AL MENÚ
@@ -349,7 +379,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: "30%",
-    backgroundColor: "#f0e7e2",
+    backgroundColor: c.decorAdmin,
     borderBottomRightRadius: 80,
     borderBottomLeftRadius: 80,
     zIndex: 0,
@@ -360,7 +390,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: c.surfaceAlt,
     borderTopLeftRadius: 80,
     borderTopRightRadius: 80,
     zIndex: 0,
@@ -379,50 +409,50 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: "#FFF",
+    backgroundColor: c.surface,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: c.border,
   },
   title: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#0F172A",
+    color: c.text,
     letterSpacing: -0.5,
   },
-  subtitle: { fontSize: 15, color: "#64748B", marginTop: 4 },
+  subtitle: { fontSize: 15, color: c.textSecondary, marginTop: 4 },
 
   list: { paddingHorizontal: 24, paddingBottom: 140, zIndex: 1 },
   section: { marginBottom: 24 },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#0F172A",
+    color: c.text,
     marginBottom: 12,
     marginLeft: 4,
   },
 
   card: {
-    backgroundColor: "#FFF",
+    backgroundColor: c.surface,
     borderRadius: 20,
     padding: 18,
     marginBottom: 12,
-    shadowColor: "#0F172A",
+    shadowColor: c.shadow,
     shadowOpacity: 0.06,
     shadowRadius: 12,
     elevation: 4,
     borderWidth: 1,
-    borderColor: "#F1F5F9",
+    borderColor: c.borderSoft,
   },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 10,
   },
-  orderId: { fontSize: 16, fontWeight: "800", color: "#0F172A" },
-  paymentMethod: { fontSize: 13, color: "#64748B", fontWeight: "600" },
+  orderId: { fontSize: 16, fontWeight: "800", color: c.text },
+  paymentMethod: { fontSize: 13, color: c.textSecondary, fontWeight: "600" },
 
   statusBadge: {
     flexDirection: "row",
@@ -437,18 +467,18 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 12, fontWeight: "700" },
 
   itemsPreview: { marginBottom: 14 },
-  itemText: { fontSize: 14, color: "#334155", marginBottom: 3 },
-  moreItems: { fontSize: 13, color: "#94A3B8", fontStyle: "italic" },
+  itemText: { fontSize: 14, color: c.textBody, marginBottom: 3 },
+  moreItems: { fontSize: 13, color: c.textMuted, fontStyle: "italic" },
 
   cardFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     borderTopWidth: 1,
-    borderTopColor: "#F1F5F9",
+    borderTopColor: c.borderSoft,
     paddingTop: 12,
   },
-  total: { fontSize: 18, fontWeight: "800", color: "#10B981" },
+  total: { fontSize: 18, fontWeight: "800", color: c.success },
 
   actions: { flexDirection: "row", gap: 8 },
   actionBtn: {
@@ -457,19 +487,19 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: c.surfaceAlt,
     borderWidth: 1,
   },
-  disabledBtn: { opacity: 0.5, backgroundColor: "#F1F5F9" },
-  btnPreparing: { borderColor: "#BFDBFE" },
-  btnReady: { borderColor: "#A7F3D0" },
+  disabledBtn: { opacity: 0.5, backgroundColor: c.surfaceMuted },
+  btnPreparing: { borderColor: c.infoBorder },
+  btnReady: { borderColor: c.successBorder },
 
   empty: { flex: 1, justifyContent: "center", alignItems: "center", zIndex: 1 },
   emptyIconBox: {
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: c.infoSoft,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 20,
@@ -477,10 +507,10 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#0F172A",
+    color: c.text,
     marginBottom: 8,
   },
-  emptyText: { fontSize: 15, color: "#64748B", textAlign: "center" },
+  emptyText: { fontSize: 15, color: c.textSecondary, textAlign: "center" },
 
   // ✅ BARRA FLOTANTE IDÉNTICA AL MENÚ
   floatingNavWrapper: {
@@ -493,16 +523,16 @@ const styles = StyleSheet.create({
   },
   floatingNav: {
     flexDirection: "row",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.surface,
     borderRadius: 32,
     padding: 8,
-    shadowColor: "#0F172A",
+    shadowColor: c.shadow,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.12,
     shadowRadius: 24,
     elevation: 12,
     borderWidth: 1,
-    borderColor: "#F1F5F9",
+    borderColor: c.borderSoft,
   },
   navItemActive: {
     flex: 1,
@@ -520,6 +550,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 24,
   },
-  navTextActive: { fontSize: 12, fontWeight: "700", color: "#638ec1" },
-  navTextInactive: { fontSize: 12, fontWeight: "600", color: "#94A3B8" },
+  navTextActive: { fontSize: 12, fontWeight: "700", color: c.accent },
+  navTextInactive: { fontSize: 12, fontWeight: "600", color: c.textMuted },
 });

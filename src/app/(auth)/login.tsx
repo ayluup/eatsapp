@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { Link } from "expo-router";
+import { useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -11,33 +11,30 @@ import {
     Pressable,
     SafeAreaView,
     ScrollView,
-    StatusBar,
     StyleSheet,
     Text,
     TextInput,
     View,
 } from "react-native";
 import { useAuth } from "../../context/AuthContext";
+import { isValidEmail, MIN_PASSWORD_LENGTH } from "../../utils/auth-errors";
+import { ThemeColors } from "../../constants/theme";
+import { useThemedStyles } from "../../hooks/use-themed-styles";
 
 export default function LoginScreen() {
+  const { colors: c, styles } = useThemedStyles(createStyles);
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp, user, role, loading: authLoading } = useAuth();
-  const router = useRouter();
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const { signIn, signUp, signInWithGoogle } = useAuth();
 
   // ✅ Animaciones para transiciones suaves
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  const btnScale = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    if (!authLoading && user && role) {
-      router.replace(role === "admin" ? "/(admin)/menu" : "/(student)/menu");
-    }
-  }, [user, role, authLoading]);
+  const fadeAnim = useState(() => new Animated.Value(1))[0];
+  const slideAnim = useState(() => new Animated.Value(0))[0];
+  const btnScale = useState(() => new Animated.Value(1))[0];
 
   // ✅ Función para animar el cambio entre Login/Register
   const animateTransition = (callback: () => void) => {
@@ -74,37 +71,44 @@ export default function LoginScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!email || !password)
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !password)
       return Alert.alert("Error", "Completá todos los campos");
-    setLoading(true);
+    if (!isValidEmail(cleanEmail))
+      return Alert.alert("Error", "Ingresá un email válido");
+    if (!isLogin && password.length < MIN_PASSWORD_LENGTH)
+      return Alert.alert(
+        "Error",
+        `La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`,
+      );
 
+    setLoading(true);
     try {
       if (isLogin) {
-        const { error } = await signIn(email, password);
-        if (error) throw error;
+        // Si sale bien, el layout redirige solo a la pantalla del rol
+        const { error } = await signIn(cleanEmail, password);
+        if (error) Alert.alert("No se pudo iniciar sesión", error);
       } else {
-        if (password.length < 6)
-          throw new Error("La contraseña debe tener al menos 6 caracteres");
-        if (!email.includes("@")) throw new Error("Ingresá un email válido");
-
-        const { error } = await signUp(email, password);
-        if (error) throw error;
-        Alert.alert("Éxito", "Cuenta creada correctamente. Iniciá sesión.");
-        animateTransition(() => setIsLogin(true)); // Volver a login con animación
-        return;
+        const { error, needsConfirmation } = await signUp(cleanEmail, password);
+        if (error) return Alert.alert("No se pudo crear la cuenta", error);
+        if (needsConfirmation) {
+          Alert.alert(
+            "Confirmá tu email",
+            "Te enviamos un link para activar tu cuenta. Abrilo desde este celular.",
+          );
+          animateTransition(() => setIsLogin(true));
+        }
       }
-    } catch (err: any) {
-      Alert.alert("Error", err.message || "Credenciales incorrectas");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSocialLogin = (provider: string) => {
-    Alert.alert(
-      "Próximamente",
-      `El inicio de sesión con ${provider} estará disponible pronto.`,
-    );
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    const { error } = await signInWithGoogle();
+    setGoogleLoading(false);
+    if (error) Alert.alert("No se pudo iniciar sesión con Google", error);
   };
 
   // ✅ Animación de escala para botones
@@ -123,17 +127,8 @@ export default function LoginScreen() {
     ]).start();
   };
 
-  if (!authLoading && user && role) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#10B981" />
-      </View>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" />
 
       <View style={styles.background}>
         <View style={styles.topHalf} />
@@ -168,11 +163,11 @@ export default function LoginScreen() {
 
               <View style={styles.form}>
                 <View style={styles.inputBox}>
-                  <Ionicons name="mail-outline" size={22} color="#64748B" />
+                  <Ionicons name="mail-outline" size={22} color={c.textSecondary} />
                   <TextInput
                     style={styles.input}
                     placeholder="Email"
-                    placeholderTextColor="#94A3B8"
+                    placeholderTextColor={c.textMuted}
                     value={email}
                     onChangeText={setEmail}
                     autoCapitalize="none"
@@ -184,12 +179,12 @@ export default function LoginScreen() {
                   <Ionicons
                     name="lock-closed-outline"
                     size={22}
-                    color="#64748B"
+                    color={c.textSecondary}
                   />
                   <TextInput
                     style={[styles.input, styles.passwordInput]}
                     placeholder="Contraseña"
-                    placeholderTextColor="#94A3B8"
+                    placeholderTextColor={c.textMuted}
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry={!showPassword}
@@ -201,10 +196,16 @@ export default function LoginScreen() {
                     <Ionicons
                       name={showPassword ? "eye-off-outline" : "eye-outline"}
                       size={22}
-                      color="#64748B"
+                      color={c.textSecondary}
                     />
                   </Pressable>
                 </View>
+
+                {isLogin && (
+                  <Link href="/(auth)/recuperar" style={styles.forgotLink}>
+                    ¿Olvidaste tu contraseña?
+                  </Link>
+                )}
 
                 {/* ✅ Botón Principal con Animación de Escala */}
                 <Animated.View style={{ transform: [{ scale: btnScale }] }}>
@@ -217,7 +218,7 @@ export default function LoginScreen() {
                     disabled={loading}
                   >
                     {loading ? (
-                      <ActivityIndicator color="#FFF" />
+                      <ActivityIndicator color={c.onAccent} />
                     ) : (
                       <Text style={styles.mainBtnText}>
                         {isLogin ? "Entrar" : "Registrarme"}
@@ -254,21 +255,19 @@ export default function LoginScreen() {
                   styles.socialBtn,
                   pressed && styles.socialBtnPressed,
                 ]}
-                onPress={() => handleSocialLogin("Google")}
+                onPress={handleGoogleLogin}
+                disabled={googleLoading || loading}
               >
-                <Ionicons name="logo-google" size={20} color="#EA4335" />
-                <Text style={styles.socialBtnText}>Continuar con Google</Text>
-              </Pressable>
-
-              <Pressable
-                style={({ pressed }) => [
-                  styles.socialBtn,
-                  pressed && styles.socialBtnPressed,
-                ]}
-                onPress={() => handleSocialLogin("Apple")}
-              >
-                <Ionicons name="logo-apple" size={20} color="#000000" />
-                <Text style={styles.socialBtnText}>Continuar con Apple</Text>
+                {googleLoading ? (
+                  <ActivityIndicator color="#EA4335" />
+                ) : (
+                  <>
+                    <Ionicons name="logo-google" size={20} color="#EA4335" />
+                    <Text style={styles.socialBtnText}>
+                      Continuar con Google
+                    </Text>
+                  </>
+                )}
               </Pressable>
             </View>
           </ScrollView>
@@ -278,7 +277,7 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   safeArea: { flex: 1 },
   background: { flex: 1, position: "relative" },
   topHalf: {
@@ -287,7 +286,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: "50%",
-    backgroundColor: "#D1FAE5",
+    backgroundColor: c.decorLogin,
     borderBottomRightRadius: 40,
   },
   diagonalLine: {
@@ -296,7 +295,7 @@ const styles = StyleSheet.create({
     left: -50,
     right: -50,
     height: 80,
-    backgroundColor: "#A7F3D0",
+    backgroundColor: c.decorLoginLine,
     transform: [{ rotate: "-3deg" }],
     borderRadius: 40,
     opacity: 0.6,
@@ -307,7 +306,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.authBase,
     borderTopLeftRadius: 40,
   },
 
@@ -317,14 +316,16 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F0F4F8",
+    backgroundColor: c.background,
   },
 
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.cardBorder,
     borderRadius: 32,
     padding: 32,
-    shadowColor: "#0F172A",
+    shadowColor: c.shadow,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.08,
     shadowRadius: 20,
@@ -333,13 +334,13 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#0F172A",
+    color: c.text,
     marginBottom: 8,
     textAlign: "center",
   },
   cardSubtitle: {
     fontSize: 15,
-    color: "#64748B",
+    color: c.textSecondary,
     textAlign: "center",
     marginBottom: 28,
     lineHeight: 22,
@@ -349,17 +350,17 @@ const styles = StyleSheet.create({
   inputBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: c.surfaceAlt,
     borderRadius: 16,
     paddingHorizontal: 16,
     height: 56,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: c.border,
   },
   input: {
     flex: 1,
     fontSize: 16,
-    color: "#0F172A",
+    color: c.text,
     marginLeft: 12,
     fontWeight: "500",
   },
@@ -367,28 +368,35 @@ const styles = StyleSheet.create({
   eyeBtn: { position: "absolute", right: 16, padding: 4 },
 
   mainBtn: {
-    backgroundColor: "#10B981",
+    backgroundColor: c.success,
     height: 56,
     borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
     marginTop: 8,
-    shadowColor: "#10B981",
+    shadowColor: c.success,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
   },
   mainBtnText: {
-    color: "#FFFFFF",
+    color: c.onAccent,
     fontSize: 18,
     fontWeight: "800",
     letterSpacing: 0.5,
   },
 
+  forgotLink: {
+    alignSelf: "flex-end",
+    color: c.success,
+    fontSize: 14,
+    fontWeight: "600",
+    marginTop: -4,
+  },
   switchMode: { alignItems: "center", marginTop: 12, padding: 8 },
-  switchText: { fontSize: 14, color: "#64748B" },
-  switchLink: { color: "#10B981", fontWeight: "700" },
+  switchText: { fontSize: 14, color: c.textSecondary },
+  switchLink: { color: c.success, fontWeight: "700" },
 
   divider: {
     flexDirection: "row",
@@ -396,26 +404,26 @@ const styles = StyleSheet.create({
     marginVertical: 24,
     gap: 12,
   },
-  line: { flex: 1, height: 1, backgroundColor: "#E2E8F0" },
-  orText: { fontSize: 13, color: "#94A3B8", fontWeight: "500" },
+  line: { flex: 1, height: 1, backgroundColor: c.border },
+  orText: { fontSize: 13, color: c.textMuted, fontWeight: "500" },
 
   socialBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.surface,
     borderRadius: 16,
     height: 52,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: c.border,
   },
   socialBtnPressed: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: c.surfaceAlt,
     transform: [{ scale: 0.98 }],
   }, // ✅ Efecto táctil
-  socialBtnText: { fontSize: 15, fontWeight: "600", color: "#0F172A" },
+  socialBtnText: { fontSize: 15, fontWeight: "600", color: c.text },
 
   adminHint: {
     flexDirection: "row",
@@ -424,5 +432,5 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 24,
   },
-  adminHintText: { fontSize: 12, color: "#64748B", textAlign: "center" },
+  adminHintText: { fontSize: 12, color: c.textSecondary, textAlign: "center" },
 });

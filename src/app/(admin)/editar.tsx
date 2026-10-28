@@ -17,8 +17,11 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { ThemeColors } from "../../constants/theme";
+import { useThemedStyles } from "../../hooks/use-themed-styles";
 
 export default function AdminEditarScreen() {
+  const { colors: c, styles } = useThemedStyles(createStyles);
   const { id } = useLocalSearchParams();
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
@@ -141,7 +144,7 @@ export default function AdminEditarScreen() {
   if (fetching) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#638ec1" />
+        <ActivityIndicator size="large" color={c.accent} />
       </View>
     );
   }
@@ -159,7 +162,7 @@ export default function AdminEditarScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={26} color="#0F172A" />
+          <Ionicons name="arrow-back" size={26} color={c.text} />
         </Pressable>
 
         <Text style={styles.title}>Editar Producto</Text>
@@ -177,14 +180,14 @@ export default function AdminEditarScreen() {
                 style={styles.previewImage}
               />
               <View style={styles.changeBadge}>
-                <Ionicons name="camera" size={14} color="#FFF" />
+                <Ionicons name="camera" size={14} color={c.onAccent} />
                 <Text style={styles.changeText}>Cambiar foto</Text>
               </View>
             </>
           ) : (
             <View style={styles.placeholderBox}>
               <View style={styles.placeholderIconCircle}>
-                <Ionicons name="camera-outline" size={32} color="#94A3B8" />
+                <Ionicons name="camera-outline" size={32} color={c.textMuted} />
               </View>
               <Text style={styles.placeholderText}>
                 Tocar para cambiar foto
@@ -216,12 +219,12 @@ export default function AdminEditarScreen() {
                 onPress={takePhoto}
               >
                 <View
-                  style={[styles.optionIcon, { backgroundColor: "#ECFDF5" }]}
+                  style={[styles.optionIcon, { backgroundColor: c.successSoft }]}
                 >
-                  <Ionicons name="camera" size={24} color="#10B981" />
+                  <Ionicons name="camera" size={24} color={c.success} />
                 </View>
                 <Text style={styles.optionText}>Usar Cámara</Text>
-                <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+                <Ionicons name="chevron-forward" size={20} color={c.textFaint} />
               </Pressable>
 
               <Pressable
@@ -232,12 +235,12 @@ export default function AdminEditarScreen() {
                 onPress={pickFromGallery}
               >
                 <View
-                  style={[styles.optionIcon, { backgroundColor: "#EFF6FF" }]}
+                  style={[styles.optionIcon, { backgroundColor: c.infoSoft }]}
                 >
-                  <Ionicons name="images" size={24} color="#3B82F6" />
+                  <Ionicons name="images" size={24} color={c.info} />
                 </View>
                 <Text style={styles.optionText}>Elegir de Galería</Text>
-                <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+                <Ionicons name="chevron-forward" size={20} color={c.textFaint} />
               </Pressable>
 
               <Pressable
@@ -259,13 +262,13 @@ export default function AdminEditarScreen() {
             <Ionicons
               name="pricetag-outline"
               size={20}
-              color="#94A3B8"
+              color={c.textMuted}
               style={styles.inputIcon}
             />
             <TextInput
               style={styles.input}
               placeholder="Ej: Sándwich de jamón y queso"
-              placeholderTextColor="#CBD5E1"
+              placeholderTextColor={c.textFaint}
               value={nombre}
               onChangeText={setNombre}
             />
@@ -278,13 +281,13 @@ export default function AdminEditarScreen() {
             <Ionicons
               name="document-text-outline"
               size={20}
-              color="#94A3B8"
+              color={c.textMuted}
               style={styles.inputIconTop}
             />
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="Ej: Pan artesanal, jamón cocido, queso tybo..."
-              placeholderTextColor="#CBD5E1"
+              placeholderTextColor={c.textFaint}
               value={descripcion}
               onChangeText={setDescripcion}
               multiline
@@ -301,13 +304,13 @@ export default function AdminEditarScreen() {
             <Ionicons
               name="cash-outline"
               size={20}
-              color="#94A3B8"
+              color={c.textMuted}
               style={styles.inputIcon}
             />
             <TextInput
               style={styles.input}
               placeholder="Ej: 2150"
-              placeholderTextColor="#CBD5E1"
+              placeholderTextColor={c.textFaint}
               value={precio}
               onChangeText={setPrecio}
               keyboardType="numeric"
@@ -344,15 +347,15 @@ export default function AdminEditarScreen() {
         {/* Switch de Stock Estilizado */}
         <View style={styles.switchCard}>
           <View style={styles.switchInfo}>
-            <Ionicons name="cube-outline" size={20} color="#64748B" />
+            <Ionicons name="cube-outline" size={20} color={c.textSecondary} />
             <Text style={styles.switchLabel}>¿Hay stock disponible?</Text>
           </View>
           <Switch
             value={disponible}
             onValueChange={setDisponible}
-            trackColor={{ false: "#CBD5E1", true: "#10B981" }}
-            thumbColor={disponible ? "#FFF" : "#F1F5F9"}
-            ios_backgroundColor="#CBD5E1"
+            trackColor={{ false: c.textFaint, true: c.success }}
+            thumbColor={disponible ? c.onAccent : c.surfaceMuted}
+            ios_backgroundColor={c.textFaint}
           />
         </View>
 
@@ -366,11 +369,11 @@ export default function AdminEditarScreen() {
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color="#FFF" size="small" />
+            <ActivityIndicator color={c.onAccent} size="small" />
           ) : (
             <>
               <Text style={styles.btnText}>Guardar Cambios</Text>
-              <Ionicons name="checkmark-circle" size={20} color="#FFF" />
+              <Ionicons name="checkmark-circle" size={20} color={c.onAccent} />
             </>
           )}
         </Pressable>
@@ -379,7 +382,7 @@ export default function AdminEditarScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1 },
 
   // ✅ FONDO DIFUMINADO IDÉNTICO A AGREGAR
@@ -389,7 +392,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: "30%",
-    backgroundColor: "#f0e7e2",
+    backgroundColor: c.decorAdmin,
     borderBottomRightRadius: 80,
     borderBottomLeftRadius: 80,
     zIndex: 0,
@@ -400,7 +403,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: c.surfaceAlt,
     borderTopLeftRadius: 80,
     borderTopRightRadius: 80,
     zIndex: 0,
@@ -410,7 +413,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: c.surfaceAlt,
   },
 
   scrollView: { flex: 1, zIndex: 1 },
@@ -421,23 +424,23 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: "#FFF",
+    backgroundColor: c.surface,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: c.border,
   },
   title: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#0F172A",
+    color: c.text,
     marginBottom: 6,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 15,
-    color: "#64748B",
+    color: c.textSecondary,
     marginBottom: 28,
     lineHeight: 22,
   },
@@ -448,10 +451,10 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     overflow: "hidden",
     marginBottom: 28,
-    backgroundColor: "#FFF",
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    shadowColor: "#0F172A",
+    borderColor: c.border,
+    shadowColor: c.shadow,
     shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 2,
@@ -463,37 +466,37 @@ const styles = StyleSheet.create({
     right: 12,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#0F172A",
+    backgroundColor: c.overlay,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
   },
-  changeText: { color: "#FFF", fontSize: 12, fontWeight: "600", marginLeft: 6 },
+  changeText: { color: c.onAccent, fontSize: 12, fontWeight: "600", marginLeft: 6 },
   placeholderBox: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: c.surfaceAlt,
   },
   placeholderIconCircle: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: c.surfaceMuted,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 12,
   },
-  placeholderText: { color: "#0F172A", fontSize: 15, fontWeight: "600" },
-  placeholderSubtext: { marginTop: 4, color: "#94A3B8", fontSize: 13 },
+  placeholderText: { color: c.text, fontSize: 15, fontWeight: "600" },
+  placeholderSubtext: { marginTop: 4, color: c.textMuted, fontSize: 13 },
 
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.5)",
+    backgroundColor: c.overlay,
     justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: "#FFF",
+    backgroundColor: c.surface,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     padding: 24,
@@ -502,7 +505,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#0F172A",
+    color: c.text,
     marginBottom: 20,
     textAlign: "center",
   },
@@ -512,9 +515,9 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
     borderRadius: 16,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: c.surfaceAlt,
   },
-  modalOptionPressed: { backgroundColor: "#F1F5F9" },
+  modalOptionPressed: { backgroundColor: c.surfaceMuted },
   optionIcon: {
     width: 48,
     height: 48,
@@ -523,33 +526,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 16,
   },
-  optionText: { flex: 1, fontSize: 16, fontWeight: "600", color: "#0F172A" },
+  optionText: { flex: 1, fontSize: 16, fontWeight: "600", color: c.text },
   cancelBtn: { padding: 16, alignItems: "center", marginTop: 8 },
-  cancelText: { fontSize: 16, fontWeight: "600", color: "#EF4444" },
+  cancelText: { fontSize: 16, fontWeight: "600", color: c.danger },
 
   formGroup: { marginBottom: 20 },
   label: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#0F172A",
+    color: c.text,
     marginBottom: 8,
     marginLeft: 4,
   },
-  required: { color: "#EF4444" },
+  required: { color: c.danger },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFF",
+    backgroundColor: c.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: c.border,
     paddingHorizontal: 16,
     height: 56,
   },
   textAreaWrapper: { height: 100, alignItems: "flex-start", paddingTop: 16 },
   inputIcon: { marginRight: 12 },
   inputIconTop: { marginRight: 12, marginTop: 2 },
-  input: { flex: 1, fontSize: 16, color: "#0F172A", height: "100%" },
+  input: { flex: 1, fontSize: 16, color: c.text, height: "100%" },
   textArea: { textAlignVertical: "top", paddingTop: 0 },
 
   catContainer: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
@@ -557,43 +560,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: "#FFF",
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: c.border,
   },
-  catBtnActive: { backgroundColor: "#638ec1", borderColor: "#638ec1" },
-  catText: { fontSize: 14, fontWeight: "600", color: "#64748B" },
-  catTextActive: { color: "#FFF" },
+  catBtnActive: { backgroundColor: c.accent, borderColor: c.accent },
+  catText: { fontSize: 14, fontWeight: "600", color: c.textSecondary },
+  catTextActive: { color: c.onAccent },
 
   switchCard: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#FFF",
+    backgroundColor: c.surface,
     padding: 16,
     borderRadius: 16,
     marginBottom: 28,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: c.border,
   },
   switchInfo: { flexDirection: "row", alignItems: "center", gap: 10 },
-  switchLabel: { fontSize: 16, fontWeight: "600", color: "#0F172A" },
+  switchLabel: { fontSize: 16, fontWeight: "600", color: c.text },
 
   btn: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#638ec1",
+    backgroundColor: c.accent,
     padding: 18,
     borderRadius: 16,
     marginTop: 8,
-    shadowColor: "#638ec1",
+    shadowColor: c.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
   },
   btnPressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
-  btnText: { color: "#FFF", fontSize: 17, fontWeight: "700" },
+  btnText: { color: c.onAccent, fontSize: 17, fontWeight: "700" },
 });

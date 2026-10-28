@@ -13,6 +13,8 @@ import {
   Text,
   View,
 } from "react-native";
+import { ThemeColors } from "../../constants/theme";
+import { useThemedStyles } from "../../hooks/use-themed-styles";
 
 export type MenuItem = {
   id: number;
@@ -28,6 +30,7 @@ const formatPrice = (p: number) => "$" + p.toLocaleString("es-AR");
 const CATEGORIES = ["Todos", "Comida", "Gaseosas", "Bebidas"];
 
 export default function StudentMenuScreen() {
+  const { colors: c, styles } = useThemedStyles(createStyles);
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("Todos");
@@ -100,10 +103,9 @@ export default function StudentMenuScreen() {
           ]}
           onPress={async () => {
             await signOut();
-            router.replace("/(auth)/login");
           }}
         >
-          <Ionicons name="log-out-outline" size={22} color="#EF4444" />
+          <Ionicons name="log-out-outline" size={22} color={c.danger} />
         </Pressable>
       </View>
 
@@ -178,7 +180,7 @@ export default function StudentMenuScreen() {
                   <Ionicons
                     name={item.disponible ? "checkmark-circle" : "close-circle"}
                     size={14}
-                    color="#fff"
+                    color={c.onAccent}
                   />
                   <Text style={styles.stockText}>
                     {item.disponible ? "Disponible" : "Agotado"}
@@ -191,7 +193,7 @@ export default function StudentMenuScreen() {
                   style={styles.addButton}
                   onPress={() => handleAddToCart(item)}
                 >
-                  <Ionicons name="add" size={24} color="#fff" />
+                  <Ionicons name="add" size={24} color={c.onAccent} />
                 </Pressable>
               )}
             </Pressable>
@@ -199,7 +201,7 @@ export default function StudentMenuScreen() {
         }}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="fast-food-outline" size={48} color="#CBD5E1" />
+            <Ionicons name="fast-food-outline" size={48} color={c.textFaint} />
             <Text style={styles.emptyTitle}>
               {selectedCategory === "Todos"
                 ? "No hay productos disponibles"
@@ -217,7 +219,7 @@ export default function StudentMenuScreen() {
       {showToast && (
         <View style={styles.toastContainer}>
           <View style={styles.toast}>
-            <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+            <Ionicons name="checkmark-circle" size={20} color={c.success} />
             <Text style={styles.toastText}>"{lastAddedItem}" agregado</Text>
           </View>
         </View>
@@ -227,7 +229,7 @@ export default function StudentMenuScreen() {
         <View style={styles.floatingNav}>
           {/* Menú: ACTIVO (Blanco con texto Azul) */}
           <Pressable style={styles.navItemActive}>
-            <Ionicons name="restaurant" size={24} color="#638ec1" />
+            <Ionicons name="restaurant" size={24} color={c.accent} />
             <Text style={styles.navTextActive}>Menú</Text>
           </Pressable>
           <Pressable
@@ -245,7 +247,7 @@ export default function StudentMenuScreen() {
               <Ionicons
                 name="cart-outline"
                 size={24}
-                color={cartCount > 0 ? "#0F172A" : "#94A3B8"}
+                color={cartCount > 0 ? c.text : c.textMuted}
               />
             </View>
             <Text
@@ -262,8 +264,15 @@ export default function StudentMenuScreen() {
             style={styles.navItemInactive}
             onPress={() => router.push("/(student)/mis-pedidos")}
           >
-            <Ionicons name="receipt-outline" size={24} color="#94A3B8" />
+            <Ionicons name="receipt-outline" size={24} color={c.textMuted} />
             <Text style={styles.navTextInactive}>Pedidos</Text>
+          </Pressable>
+          <Pressable
+            style={styles.navItemInactive}
+            onPress={() => router.push("/(student)/perfil")}
+          >
+            <Ionicons name="person-circle-outline" size={24} color={c.textMuted} />
+            <Text style={styles.navTextInactive}>Perfil</Text>
           </Pressable>
         </View>
       </View>
@@ -271,7 +280,7 @@ export default function StudentMenuScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1 },
 
   bgTop: {
@@ -280,7 +289,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: "30%",
-    backgroundColor: "#e2ecf0",
+    backgroundColor: c.decorStudent,
     borderBottomRightRadius: 80,
     borderBottomLeftRadius: 80,
     zIndex: 0,
@@ -291,7 +300,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: c.surfaceAlt,
     borderTopLeftRadius: 80,
     borderTopRightRadius: 80,
     zIndex: 0,
@@ -313,19 +322,19 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#0F172A",
+    color: c.text,
     letterSpacing: -0.5,
   },
-  subtitle: { fontSize: 15, color: "#64748B", marginTop: 4 },
+  subtitle: { fontSize: 15, color: c.textSecondary, marginTop: 4 },
 
   // ✅ ESTILOS DEL BOTÓN DE SALIR TIPO CÁPSULA
   logoutBtn: {
     padding: 10,
     borderRadius: 12,
-    backgroundColor: "#FEF2F2",
+    backgroundColor: c.dangerSoft,
     marginLeft: 12,
     borderWidth: 1,
-    borderColor: "#FECACA",
+    borderColor: c.dangerBorder,
   },
   logoutBtnPressed: { opacity: 0.7, transform: [{ scale: 0.95 }] },
 
@@ -343,13 +352,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 19,
-    backgroundColor: "#FFF",
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: c.border,
   },
   categoryBtnActive: { backgroundColor: "#cd9443", borderColor: "#cd9443" },
-  categoryText: { fontSize: 13, fontWeight: "600", color: "#64748B" },
-  categoryTextActive: { color: "#FFF", fontWeight: "700" },
+  categoryText: { fontSize: 13, fontWeight: "600", color: c.textSecondary },
+  categoryTextActive: { color: c.onAccent, fontWeight: "700" },
 
   list: {
     paddingHorizontal: 24,
@@ -363,33 +372,33 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 320,
     flexDirection: "row",
-    backgroundColor: "#FFF",
+    backgroundColor: c.surface,
     borderRadius: 20,
     padding: 18,
     marginBottom: 14,
     alignItems: "center",
-    shadowColor: "#0F172A",
+    shadowColor: c.shadow,
     shadowOpacity: 0.06,
     shadowRadius: 12,
     elevation: 4,
     borderWidth: 1,
-    borderColor: "#F1F5F9",
+    borderColor: c.borderSoft,
   },
   cardNoImage: { paddingRight: 18 },
-  cardDisabled: { opacity: 0.8, backgroundColor: "#f8fafce2" },
+  cardDisabled: { opacity: 0.8, backgroundColor: c.surfaceAlt },
   image: {
     width: 72,
     height: 72,
     borderRadius: 16,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: c.surfaceMuted,
     marginRight: 16,
   },
   info: { flex: 1 },
   infoFullWidth: { flex: 1, marginRight: 0 },
-  name: { fontSize: 16, fontWeight: "700", color: "#0F172A", marginBottom: 3 },
-  textDisabled: { color: "#94A3B8" },
-  desc: { fontSize: 13, color: "#64748B", lineHeight: 18, marginBottom: 6 },
-  price: { fontSize: 18, fontWeight: "800", color: "#638ec1", marginBottom: 6 },
+  name: { fontSize: 16, fontWeight: "700", color: c.text, marginBottom: 3 },
+  textDisabled: { color: c.textMuted },
+  desc: { fontSize: 13, color: c.textSecondary, lineHeight: 18, marginBottom: 6 },
+  price: { fontSize: 18, fontWeight: "800", color: c.accent, marginBottom: 6 },
 
   stockBadge: {
     flexDirection: "row",
@@ -402,7 +411,7 @@ const styles = StyleSheet.create({
   },
   badgeInStock: { backgroundColor: "#87c397" },
   badgeOutOfStock: { backgroundColor: "#b51212" },
-  stockText: { fontSize: 11, fontWeight: "700", color: "#ffffff" },
+  stockText: { fontSize: 11, fontWeight: "700", color: c.onAccent },
 
   addButton: {
     width: 40,
@@ -423,12 +432,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#0F172A",
+    color: c.text,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 15,
-    color: "#64748B",
+    color: c.textSecondary,
     textAlign: "center",
     maxWidth: 260,
     lineHeight: 22,
@@ -445,19 +454,19 @@ const styles = StyleSheet.create({
   toast: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.surface,
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderRadius: 16,
-    shadowColor: "#0F172A",
+    shadowColor: c.shadow,
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 8,
     gap: 10,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: c.border,
   },
-  toastText: { fontSize: 14, fontWeight: "600", color: "#0F172A" },
+  toastText: { fontSize: 14, fontWeight: "600", color: c.text },
 
   floatingNavWrapper: {
     position: "absolute",
@@ -469,16 +478,16 @@ const styles = StyleSheet.create({
   },
   floatingNav: {
     flexDirection: "row",
-    backgroundColor: "#ffffff",
+    backgroundColor: c.surface,
     borderRadius: 32,
     padding: 8,
-    shadowColor: "#0F172A",
+    shadowColor: c.shadow,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.12,
     shadowRadius: 24,
     elevation: 12,
     borderWidth: 1,
-    borderColor: "#F1F5F9",
+    borderColor: c.borderSoft,
   },
 
   navItemActive: {
@@ -488,9 +497,9 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingVertical: 12,
     borderRadius: 24,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: "#ffffff",
+    borderColor: c.surface,
   },
 
   navItemInactive: {
@@ -502,9 +511,9 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
 
-  navTextActive: { color: "#638ec1", fontSize: 12, fontWeight: "800" },
-  navTextInactive: { fontSize: 12, fontWeight: "600", color: "#94A3B8" },
-  navTextDark: { color: "#0F172A", fontWeight: "700" },
+  navTextActive: { color: c.accent, fontSize: 12, fontWeight: "800" },
+  navTextInactive: { fontSize: 12, fontWeight: "600", color: c.textMuted },
+  navTextDark: { color: c.text, fontWeight: "700" },
 
   cartIconWrapper: {
     position: "relative",
@@ -515,7 +524,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -6,
     right: -8,
-    backgroundColor: "#EF4444",
+    backgroundColor: c.danger,
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -524,7 +533,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     zIndex: 10,
     borderWidth: 2,
-    borderColor: "#FFF",
+    borderColor: c.surface,
   },
-  badgeText: { color: "#fff", fontSize: 10, fontWeight: "800" },
+  badgeText: { color: c.onAccent, fontSize: 10, fontWeight: "800" },
 });
