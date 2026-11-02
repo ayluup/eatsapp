@@ -20,6 +20,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth, UserRole } from "../context/AuthContext";
 import { ThemePreference, useAppTheme } from "../context/ThemeContext";
+import { AccessibilityPanel } from "./accessibility-panel";
 import { supabase } from "../services/supabase";
 import { MIN_PASSWORD_LENGTH } from "../utils/auth-errors";
 import { ThemeColors } from "../constants/theme";
@@ -97,7 +98,8 @@ async function fetchStats(userId: string, role: UserRole): Promise<Stat[] | null
 export function ProfileScreen() {
   const { colors: c, styles } = useThemedStyles(createStyles);
   const { user, role, hasPassword, changePassword, signOut } = useAuth();
-  const { preference, setPreference } = useAppTheme();
+  const { preference, setPreference, accessible } = useAppTheme();
+  const [showA11y, setShowA11y] = useState(false);
   const router = useSafeRouter();
   const insets = useSafeAreaInsets();
   const userId = user?.id;
@@ -482,7 +484,7 @@ export function ProfileScreen() {
         )}
 
         {/* Datos personales */}
-        <Text style={styles.sectionTitle}>DATOS PERSONALES</Text>
+        <Text style={styles.sectionTitle} accessibilityRole="header">DATOS PERSONALES</Text>
         <View style={styles.card}>
           {loadingProfile ? (
             <ActivityIndicator color={c.accent} style={styles.cardLoading} />
@@ -564,7 +566,7 @@ export function ProfileScreen() {
         </View>
 
         {/* Apariencia */}
-        <Text style={styles.sectionTitle}>APARIENCIA</Text>
+        <Text style={styles.sectionTitle} accessibilityRole="header">APARIENCIA</Text>
         <View style={styles.card}>
           <View style={styles.segmented}>
             {THEME_OPTIONS.map((opt) => {
@@ -601,8 +603,32 @@ export function ProfileScreen() {
           </Text>
         </View>
 
+        {/* Accesibilidad */}
+        <Text style={styles.sectionTitle} accessibilityRole="header">ACCESIBILIDAD</Text>
+        <View style={styles.card}>
+          <Pressable
+            style={styles.switchRow}
+            onPress={() => setShowA11y(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Opciones de accesibilidad"
+            accessibilityHint="Contraste, tamaño de texto, daltonismo, animaciones y más"
+          >
+            <Ionicons name="accessibility" size={22} color={c.accent} />
+            <View style={styles.flex1}>
+              <Text style={styles.switchLabel}>Opciones de accesibilidad</Text>
+              <Text style={styles.hint}>
+                {accessible
+                  ? "Tenés opciones activadas. Tocá para cambiarlas."
+                  : "Visión, daltonismo, motricidad, movimiento y lectura."}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={c.textMuted} />
+          </Pressable>
+          <AccessibilityPanel visible={showA11y} onClose={() => setShowA11y(false)} />
+        </View>
+
         {/* Seguridad */}
-        <Text style={styles.sectionTitle}>SEGURIDAD</Text>
+        <Text style={styles.sectionTitle} accessibilityRole="header">SEGURIDAD</Text>
         <View style={styles.card}>
           {loginWithGoogle && (
             <View style={styles.infoRow}>
@@ -1036,6 +1062,9 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   segmentSelected: { backgroundColor: c.accent },
   segmentText: { fontSize: 13, fontWeight: "600", color: c.textSecondary },
   segmentTextSelected: { color: c.onAccent },
+
+  switchRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  switchLabel: { fontSize: 15, fontWeight: "700", color: c.text },
 
   infoRow: {
     flexDirection: "row",

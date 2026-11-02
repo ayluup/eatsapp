@@ -95,10 +95,15 @@ export default function AdminHistorialScreen() {
   const header = (
     <View>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+        >
           <Ionicons name="arrow-back" size={26} color={c.text} />
         </Pressable>
-        <Text style={styles.title}>Historial y ventas</Text>
+        <Text style={styles.title} accessibilityRole="header">Historial y ventas</Text>
         <Text style={styles.subtitle}>Los cancelados no suman en las ventas</Text>
       </View>
 
@@ -205,7 +210,7 @@ export default function AdminHistorialScreen() {
         }
         renderItem={({ item: section }) => (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">{section.title}</Text>
             {section.data.map((order) => {
               const config = STATUS_CONFIG[order.estado] ?? STATUS_CONFIG.pending;
               return (

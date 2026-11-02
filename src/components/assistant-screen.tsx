@@ -235,11 +235,16 @@ export function AssistantScreen() {
       <View style={styles.bgTop} />
 
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+        >
           <Ionicons name="arrow-back" size={26} color={c.text} />
         </Pressable>
         <View style={styles.flex1}>
-          <Text style={styles.title}>Asistente</Text>
+          <Text style={styles.title} accessibilityRole="header">Asistente</Text>
           <Text style={styles.subtitle}>
             {isAdmin
               ? "Gestiona productos, pedidos y ventas por vos"
@@ -307,6 +312,9 @@ export function AssistantScreen() {
           style={[styles.sendBtn, (!input.trim() || thinking) && styles.sendBtnDisabled]}
           onPress={() => send(input)}
           disabled={!input.trim() || thinking}
+          accessibilityRole="button"
+          accessibilityLabel="Enviar mensaje"
+          accessibilityState={{ disabled: !input.trim() || thinking }}
         >
           <Ionicons name="send" size={20} color={c.onAccent} />
         </Pressable>

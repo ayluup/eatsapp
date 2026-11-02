@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import { useSafeRouter } from "../../hooks/use-safe-router";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -26,6 +26,7 @@ import { ThemeColors } from "../../constants/theme";
 import { useOrdersRealtime } from "../../hooks/use-orders-realtime";
 import { useThemedStyles } from "../../hooks/use-themed-styles";
 import { showAlert } from "../../components/app-alert";
+import { announce } from "../../utils/announce";
 
 // Cuántos pedidos se cargan por vez en el historial
 const PAGE_SIZE = 30;
@@ -42,6 +43,9 @@ export default function StudentMisPedidosScreen() {
   const router = useSafeRouter();
   const { user } = useAuth();
 
+  // Último estado conocido de cada pedido, para avisar por voz cuando cambia
+  const lastStatus = useRef<Map<string, Order["estado"]> | null>(null);
+
   const fetchOrders = async (max = limit) => {
     try {
       const { data, error } = await supabase
@@ -55,7 +59,17 @@ export default function StudentMisPedidosScreen() {
 
       // Se pide uno de más para saber si hay más pedidos viejos
       setHasMore((data ?? []).length > max);
-      setOrders(((data ?? []) as Order[]).slice(0, max));
+      const list = ((data ?? []) as Order[]).slice(0, max);
+      if (lastStatus.current) {
+        for (const o of list) {
+          const before = lastStatus.current.get(o.id);
+          if (before && before !== o.estado) {
+            announce(`Pedido ${o.id_pedido}: ${STATUS_CONFIG[o.estado]?.label ?? o.estado}`);
+          }
+        }
+      }
+      lastStatus.current = new Map(list.map((o) => [o.id, o.estado]));
+      setOrders(list);
     } catch (err) {
       console.error(err);
     } finally {
@@ -161,7 +175,7 @@ export default function StudentMisPedidosScreen() {
 
       {/* ✅ HEADER LIMPIO SIN BOTÓN VOLVER */}
       <View style={styles.header}>
-        <Text style={styles.title}>Mis Pedidos</Text>
+        <Text style={styles.title} accessibilityRole="header">Mis Pedidos</Text>
         <Text style={styles.subtitle}>
           Seguimiento en vivo e historial de tus compras
         </Text>
@@ -202,7 +216,7 @@ export default function StudentMisPedidosScreen() {
         }
         renderItem={({ item: section }) => (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">{section.title}</Text>
             {section.data.map((order) => {
               const config = STATUS_CONFIG[order.estado] ?? STATUS_CONFIG.pending;
               return (

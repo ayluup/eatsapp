@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "expo-router";
 import { useSafeRouter } from "../../hooks/use-safe-router";
-import { useCallback, useLayoutEffect, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -26,6 +26,7 @@ import { ThemeColors } from "../../constants/theme";
 import { useOrdersRealtime } from "../../hooks/use-orders-realtime";
 import { useThemedStyles } from "../../hooks/use-themed-styles";
 import { showAlert } from "../../components/app-alert";
+import { announce } from "../../utils/announce";
 
 // Primero lo que hay que preparar, después lo que espera ser retirado
 const sortOrders = (orders: Order[]) => {
@@ -59,6 +60,9 @@ export default function AdminPedidosScreen() {
   }, [navigation]);
 
   // Solo los pedidos en curso; entregados y cancelados van al historial
+  // Pedidos ya vistos, para avisar por voz cuando entra uno nuevo
+  const knownIds = useRef<Set<string> | null>(null);
+
   const fetchOrders = async () => {
     try {
       const { data, error } = await supabase
@@ -69,7 +73,14 @@ export default function AdminPedidosScreen() {
         .limit(100);
 
       if (error) throw error;
-      setOrders((data ?? []) as Order[]);
+      const list = (data ?? []) as Order[];
+      if (knownIds.current) {
+        const nuevos = list.filter((o) => !knownIds.current!.has(o.id)).length;
+        if (nuevos === 1) announce("Entró un pedido nuevo");
+        else if (nuevos > 1) announce(`Entraron ${nuevos} pedidos nuevos`);
+      }
+      knownIds.current = new Set(list.map((o) => o.id));
+      setOrders(list);
     } catch (err: any) {
       // warn en vez de error: no dispara la pantalla roja en dev
       console.warn(
@@ -177,7 +188,12 @@ export default function AdminPedidosScreen() {
       <View style={styles.bgBottom} />
       <View style={styles.header}>
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Pressable
+          onPress={() => router.back()}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+        >
             <Ionicons name="arrow-back" size={26} color={c.text} />
           </Pressable>
           <Pressable
@@ -188,7 +204,7 @@ export default function AdminPedidosScreen() {
             <Text style={styles.historyText}>Historial y ventas</Text>
           </Pressable>
         </View>
-        <Text style={styles.title}>Gestión de Pedidos</Text>
+        <Text style={styles.title} accessibilityRole="header">Gestión de Pedidos</Text>
         <Text style={styles.subtitle}>Se actualiza solo cuando entra un pedido</Text>
       </View>
 
@@ -212,7 +228,7 @@ export default function AdminPedidosScreen() {
           showsVerticalScrollIndicator={false}
           renderItem={({ item: section }) => (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>{section.title}</Text>
+              <Text style={styles.sectionTitle} accessibilityRole="header">{section.title}</Text>
               {section.data.map((order) => {
                 const config = STATUS_CONFIG[order.estado] ?? STATUS_CONFIG.pending;
                 const isUpdating = updatingId === order.id;

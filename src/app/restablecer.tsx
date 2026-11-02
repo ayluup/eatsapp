@@ -58,7 +58,7 @@ export default function RestablecerScreen() {
             <View style={styles.iconCircle}>
               <Ionicons name="lock-open-outline" size={32} color={c.success} />
             </View>
-            <Text style={styles.title}>Nueva contraseña</Text>
+            <Text style={styles.title} accessibilityRole="header">Nueva contraseña</Text>
             <Text style={styles.subtitle}>
               Elegí una contraseña nueva para {user?.email}
             </Text>
@@ -78,7 +78,14 @@ export default function RestablecerScreen() {
                   secureTextEntry={!showPassword}
                   autoComplete="new-password"
                 />
-                <Pressable onPress={() => setShowPassword(!showPassword)}>
+                <Pressable
+                  onPress={() => setShowPassword(!showPassword)}
+                  hitSlop={12}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                  }
+                >
                   <Ionicons
                     name={showPassword ? "eye-off-outline" : "eye-outline"}
                     size={22}

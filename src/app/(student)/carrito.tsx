@@ -19,6 +19,7 @@ import {
 import { ThemeColors } from "../../constants/theme";
 import { useThemedStyles } from "../../hooks/use-themed-styles";
 import { showAlert } from "../../components/app-alert";
+import { announce } from "../../utils/announce";
 
 const formatPrice = (price: number) => "$" + price.toLocaleString("es-AR");
 
@@ -40,6 +41,7 @@ export default function StudentCartScreen() {
   // pantalla y en Android la app se cerraba. Ahora primero se cierra el
   // modal, después se cambia de pantalla y recién ahí se vacía el carrito.
   const goToOrders = () => {
+    announce("Pedido enviado. Podés seguir su estado en Mis pedidos.");
     setShowPaymentModal(false);
     setTimeout(() => {
       router.replace("/(student)/mis-pedidos");
@@ -91,7 +93,12 @@ export default function StudentCartScreen() {
         <View style={styles.bgTop} />
         <View style={styles.bgBottom} />
 
-        <Pressable onPress={() => router.back()} style={styles.emptyBackBtn}>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.emptyBackBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+        >
           <Ionicons name="arrow-back" size={26} color={c.text} />
         </Pressable>
 
@@ -133,10 +140,15 @@ export default function StudentCartScreen() {
       <View style={styles.bgBottom} />
 
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+        >
           <Ionicons name="arrow-back" size={26} color={c.text} />
         </Pressable>
-        <Text style={styles.title}>Mi Pedido</Text>
+        <Text style={styles.title} accessibilityRole="header">Mi Pedido</Text>
         <Text style={styles.subtitle}>
           {items.length} producto(s) seleccionado(s)
         </Text>
@@ -165,6 +177,8 @@ export default function StudentCartScreen() {
                 <Image
                   source={{ uri: item.imagen_url! }}
                   style={styles.image}
+                  accessible
+                  accessibilityLabel={`Foto de ${item.nombre}`}
                 />
               )}
 
@@ -181,6 +195,9 @@ export default function StudentCartScreen() {
                   ]}
                   onPress={() => updateQuantity(item.id, -1)}
                   disabled={item.cantidad <= 1}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Quitar uno de ${item.nombre}`}
+                  accessibilityState={{ disabled: item.cantidad <= 1 }}
                 >
                   <Ionicons
                     name="remove"
@@ -189,7 +206,13 @@ export default function StudentCartScreen() {
                   />
                 </Pressable>
 
-                <Text style={styles.qtyText}>{item.cantidad}</Text>
+                <Text
+                  style={styles.qtyText}
+                  accessibilityLabel={`Cantidad: ${item.cantidad}`}
+                  accessibilityLiveRegion="polite"
+                >
+                  {item.cantidad}
+                </Text>
 
                 <Pressable
                   style={[
@@ -198,6 +221,9 @@ export default function StudentCartScreen() {
                   ]}
                   onPress={() => updateQuantity(item.id, 1)}
                   disabled={!canAddMore(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Agregar uno más de ${item.nombre}`}
+                  accessibilityState={{ disabled: !canAddMore(item) }}
                 >
                   <Ionicons
                     name="add"
@@ -210,6 +236,8 @@ export default function StudentCartScreen() {
               <Pressable
                 style={styles.deleteBtn}
                 onPress={() => removeItem(item.id)}
+                accessibilityRole="button"
+                accessibilityLabel={`Quitar ${item.nombre} del carrito`}
               >
                 <Ionicons name="trash-outline" size={20} color={c.danger} />
               </Pressable>

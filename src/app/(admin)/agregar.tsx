@@ -131,11 +131,16 @@ export default function AdminAgregarScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+        >
           <Ionicons name="arrow-back" size={26} color={c.text} />
         </Pressable>
 
-        <Text style={styles.title}>Nuevo Producto</Text>
+        <Text style={styles.title} accessibilityRole="header">Nuevo Producto</Text>
         <Text style={styles.subtitle}>
           Completá los datos para agregarlo al menú del kiosco.
         </Text>
@@ -501,7 +506,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     right: 12,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: c.overlay,
+    backgroundColor: c.photoBadge,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
@@ -628,7 +633,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#5d8d5c",
+    backgroundColor: c.saveButton,
     padding: 18,
     borderRadius: 16,
     marginTop: 8,

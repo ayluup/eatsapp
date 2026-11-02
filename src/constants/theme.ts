@@ -50,6 +50,15 @@ const light = {
   overlay: "rgba(15, 23, 42, 0.5)",
   shadow: "#0F172A",
 
+  // Rellenos propios de algunas pantallas (el texto encima usa onAccent)
+  categoryActiveStudent: "#cd9443",
+  categoryActiveAdmin: "#289397cb",
+  stockIn: "#87c397",
+  stockOut: "#b51212",
+  addProduct: "#63c184",
+  saveButton: "#5d8d5c",
+  photoBadge: "rgba(15, 23, 42, 0.5)",
+
   // Nombres usados por los componentes del template de Expo
   backgroundElement: "#F0F0F3",
   backgroundSelected: "#E0E1E6",
@@ -101,11 +110,134 @@ const dark: ThemeColors = {
   overlay: "rgba(0, 0, 0, 0.6)",
   shadow: "#000000",
 
+  categoryActiveStudent: "#cd9443",
+  categoryActiveAdmin: "#289397cb",
+  stockIn: "#87c397",
+  stockOut: "#b51212",
+  addProduct: "#63c184",
+  saveButton: "#5d8d5c",
+  photoBadge: "rgba(0, 0, 0, 0.6)",
+
   backgroundElement: "#212225",
   backgroundSelected: "#2E3135",
 };
 
 export const Colors = { light, dark };
+
+// Modo accesible: mismos roles con contraste WCAG AA (4.5:1 para texto,
+// 3:1 para bordes y componentes). En claro los rellenos se oscurecen y el
+// texto encima sigue blanco; en oscuro los rellenos se aclaran y el texto
+// encima pasa a ser oscuro, porque un color no puede contrastar a la vez
+// con el blanco y con el fondo oscuro.
+const accessibleLight: ThemeColors = {
+  ...light,
+  border: "#7B8799",
+  textBody: "#1E293B",
+  textSecondary: "#475569",
+  textMuted: "#5B6778",
+  textFaint: "#7B8799",
+
+  accent: "#285C97",
+  accentStrong: "#1D4673",
+
+  success: "#047857",
+  successStrong: "#065F46",
+  danger: "#B91C1C",
+  dangerStrong: "#991B1B",
+  warning: "#92400E",
+  warningStrong: "#78350F",
+  info: "#1D4ED8",
+
+  categoryActiveStudent: "#8A4B0C",
+  categoryActiveAdmin: "#14666A",
+  stockIn: "#166534",
+  stockOut: "#B91C1C",
+  addProduct: "#15803D",
+  saveButton: "#3F6B3E",
+  photoBadge: "rgba(15, 23, 42, 0.85)",
+};
+
+const accessibleDark: ThemeColors = {
+  ...dark,
+  border: "#64748B",
+  text: "#FFFFFF",
+  textBody: "#E2E8F0",
+  textSecondary: "#CBD5E1",
+  textMuted: "#A8B4C6",
+  textFaint: "#8090A6",
+  onAccent: "#0B1220",
+
+  accent: "#A9C4E6",
+  accentStrong: "#C9DBF2",
+
+  success: "#6EE7B7",
+  successStrong: "#A7F3D0",
+  danger: "#FCA5A5",
+  dangerStrong: "#FECACA",
+  warning: "#FCD34D",
+  warningStrong: "#FDE68A",
+  info: "#93C5FD",
+
+  categoryActiveStudent: "#F2C58A",
+  categoryActiveAdmin: "#7DD3D6",
+  stockIn: "#86EFAC",
+  stockOut: "#FCA5A5",
+  addProduct: "#86EFAC",
+  saveButton: "#A7D3A6",
+  photoBadge: "rgba(241, 245, 249, 0.92)",
+};
+
+export const AccessibleColors = { light: accessibleLight, dark: accessibleDark };
+
+// Daltonismo: verde y rojo se confunden con protanopia y deuteranopia, así
+// que "bien" pasa a azul y "mal" a naranja (paleta Okabe-Ito). Se aplica
+// encima de la paleta normal o de la de alto contraste.
+const colorBlindLight: Partial<ThemeColors> = {
+  success: "#0067B1",
+  successStrong: "#004F8A",
+  successSoft: "#E8F2FB",
+  successBorder: "#B3D4EF",
+  danger: "#B34A00",
+  dangerStrong: "#8F3B00",
+  dangerSoft: "#FFF3E8",
+  dangerBorder: "#FBCFA6",
+  stockIn: "#0067B1",
+  stockOut: "#B34A00",
+  addProduct: "#0067B1",
+};
+
+const colorBlindDark: Partial<ThemeColors> = {
+  onAccent: "#0B1220",
+  success: "#7CC4F2",
+  successStrong: "#B5DDF7",
+  successSoft: "#0F2C44",
+  successBorder: "#1E4F75",
+  danger: "#FFB27A",
+  dangerStrong: "#FFD1B0",
+  dangerSoft: "#3A2210",
+  dangerBorder: "#7A3E12",
+  stockIn: "#7CC4F2",
+  stockOut: "#FFB27A",
+  addProduct: "#7CC4F2",
+  // Con texto oscuro encima, los rellenos tienen que ser claros
+  categoryActiveStudent: "#F2C58A",
+  categoryActiveAdmin: "#7DD3D6",
+  saveButton: "#A7D3A6",
+  photoBadge: "rgba(241, 245, 249, 0.92)",
+};
+
+export const ColorBlindColors = { light: colorBlindLight, dark: colorBlindDark };
+
+// Tamaños de texto que se pueden elegir en Accesibilidad
+export const TextScales = [
+  { value: 1, label: "Normal" },
+  { value: 1.15, label: "Grande" },
+  { value: 1.3, label: "Muy grande" },
+] as const;
+export type TextScale = (typeof TextScales)[number]["value"];
+
+// Área de toque mínima recomendada por Android y WCAG 2.5.8
+export const MinTouchSize = 48;
 
 export type ColorSchemeName = keyof typeof Colors;
 export type ThemeColor = keyof ThemeColors;

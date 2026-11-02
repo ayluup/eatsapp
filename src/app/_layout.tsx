@@ -103,7 +103,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
           paddingVertical: 12,
           paddingHorizontal: 24,
           borderRadius: 12,
-          backgroundColor: "#208AEF",
+          backgroundColor: "#1565C0",
         }}
       >
         <Text style={{ color: "#fff", fontWeight: "600" }}>Reintentar</Text>

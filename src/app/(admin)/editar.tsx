@@ -174,11 +174,16 @@ export default function AdminEditarScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+        >
           <Ionicons name="arrow-back" size={26} color={c.text} />
         </Pressable>
 
-        <Text style={styles.title}>Editar Producto</Text>
+        <Text style={styles.title} accessibilityRole="header">Editar Producto</Text>
         <Text style={styles.subtitle}>Modificá los datos del menú.</Text>
 
         {/* Selector de Imagen Premium */}
@@ -503,7 +508,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     right: 12,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: c.overlay,
+    backgroundColor: c.photoBadge,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,

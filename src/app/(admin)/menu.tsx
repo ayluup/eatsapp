@@ -4,6 +4,7 @@ import { useSafeRouter } from "../../hooks/use-safe-router";
 import { useCallback, useLayoutEffect, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AssistantButton } from "../../components/assistant-button";
+import { AccessibilityToggleButton } from "../../components/accessibility-toggle-button";
 import { ThemeToggleButton } from "../../components/theme-toggle-button";
 import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../services/supabase";
@@ -18,6 +19,7 @@ import {
   View,
 } from "react-native";
 import { ThemeColors } from "../../constants/theme";
+import { useAppTheme } from "../../context/ThemeContext";
 import { useThemedStyles } from "../../hooks/use-themed-styles";
 import { showAlert } from "../../components/app-alert";
 
@@ -54,6 +56,7 @@ async function fetchMenusData(): Promise<Menu[] | null> {
 
 export default function AdminMenuScreen() {
   const { colors: c, styles } = useThemedStyles(createStyles);
+  const { reduceMotion, a11y } = useAppTheme();
   const [menus, setMenus] = useState<Menu[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("Todos");
@@ -133,6 +136,7 @@ export default function AdminMenuScreen() {
   };
 
   const animateCategoryPress = (index: number, callback: () => void) => {
+    if (reduceMotion) return callback();
     Animated.sequence([
       Animated.timing(categoryScale[index], {
         toValue: 0.96,
@@ -172,8 +176,6 @@ export default function AdminMenuScreen() {
           </Text>
         </View>
         <View style={styles.headerActions}>
-          <ThemeToggleButton />
-          <AssistantButton href="/(admin)/asistente" />
           <Pressable
             style={({ pressed }) => [
               styles.logoutBtn,
@@ -182,13 +184,23 @@ export default function AdminMenuScreen() {
             onPress={async () => {
               await signOut();
             }}
+            accessibilityRole="button"
+            accessibilityLabel="Cerrar sesión"
           >
             <Ionicons name="log-out-outline" size={22} color={c.danger} />
+            {a11y.showLabels && <Text style={styles.logoutText}>Salir</Text>}
           </Pressable>
         </View>
       </View>
 
-      <View style={styles.categoriesRow}>
+      {/* Asistente, tema y accesibilidad debajo del título */}
+      <View style={styles.toolsRow}>
+        <AccessibilityToggleButton />
+        <ThemeToggleButton />
+        <AssistantButton href="/(admin)/asistente" />
+      </View>
+
+      <View style={styles.categoriesRow} accessibilityRole="tablist">
         {CATEGORIES.map((cat, index) => (
           <Animated.View
             key={cat}
@@ -205,6 +217,9 @@ export default function AdminMenuScreen() {
               onPress={() =>
                 animateCategoryPress(index, () => setSelectedCategory(cat))
               }
+              accessibilityRole="tab"
+              accessibilityLabel={`Categoría ${cat}`}
+              accessibilityState={{ selected: selectedCategory === cat }}
             >
               <Text
                 style={[
@@ -239,12 +254,17 @@ export default function AdminMenuScreen() {
                 pressed && styles.cardPressed,
               ]}
               onPress={() => router.push(`/editar?id=${item.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.nombre}, ${formatPrice(item.precio)}`}
+              accessibilityHint="Abre la edición del producto"
             >
               {hasImage && (
                 <View style={styles.imageContainer}>
                   <Image
                     source={{ uri: item.imagen_url! }}
                     style={styles.productImage}
+                    accessible
+                    accessibilityLabel={`Foto de ${item.nombre}`}
                   />
                 </View>
               )}
@@ -313,6 +333,8 @@ export default function AdminMenuScreen() {
                   e.stopPropagation();
                   handleDelete(item.id);
                 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Eliminar ${item.nombre}`}
               >
                 <Ionicons
                   name="trash-outline"
@@ -482,8 +504,24 @@ const createStyles = (c: ThemeColors) =>
       color: c.text,
       letterSpacing: -0.5,
     },
-    logoutBtn: { padding: 10, borderRadius: 12, backgroundColor: c.dangerSoft },
+    logoutBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      padding: 10,
+      borderRadius: 12,
+      backgroundColor: c.dangerSoft,
+    },
     headerActions: { flexDirection: "row", gap: 8, flexShrink: 0 },
+    logoutText: { fontSize: 13, fontWeight: "700", color: c.danger },
+    toolsRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 10,
+      paddingHorizontal: 20,
+      paddingBottom: 12,
+      zIndex: 1,
+    },
     logoutBtnPressed: { opacity: 0.7, transform: [{ scale: 0.95 }] },
 
     categoriesRow: {
@@ -505,7 +543,7 @@ const createStyles = (c: ThemeColors) =>
       borderColor: c.border,
     },
     categoryBtnActive: {
-      backgroundColor: "#289397cb",
+      backgroundColor: c.categoryActiveAdmin,
       borderColor: "transparent",
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.3,

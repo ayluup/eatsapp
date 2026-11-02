@@ -18,11 +18,13 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { isValidEmail, MIN_PASSWORD_LENGTH } from "../../utils/auth-errors";
 import { ThemeColors } from "../../constants/theme";
+import { useAppTheme } from "../../context/ThemeContext";
 import { useThemedStyles } from "../../hooks/use-themed-styles";
 import { showAlert } from "../../components/app-alert";
 
 export default function LoginScreen() {
   const { colors: c, styles } = useThemedStyles(createStyles);
+  const { reduceMotion } = useAppTheme();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -38,6 +40,8 @@ export default function LoginScreen() {
 
   // ✅ Función para animar el cambio entre Login/Register
   const animateTransition = (callback: () => void) => {
+    // Con "reducir movimiento" el cambio es directo
+    if (reduceMotion) return callback();
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 0,
@@ -115,6 +119,7 @@ export default function LoginScreen() {
 
   // ✅ Animación de escala para botones
   const animatePress = (animValue: Animated.Value) => {
+    if (reduceMotion) return;
     Animated.sequence([
       Animated.timing(animValue, {
         toValue: 0.95,
@@ -194,6 +199,10 @@ export default function LoginScreen() {
                   <Pressable
                     onPress={() => setShowPassword(!showPassword)}
                     style={styles.eyeBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                    }
                   >
                     <Ionicons
                       name={showPassword ? "eye-off-outline" : "eye-outline"}

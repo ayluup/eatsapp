@@ -3,10 +3,13 @@ import { useFocusEffect } from "expo-router";
 import { useSafeRouter } from "../../hooks/use-safe-router";
 import { useCallback, useState } from "react";
 import { AssistantButton } from "../../components/assistant-button";
+import { AccessibilityToggleButton } from "../../components/accessibility-toggle-button";
 import { ThemeToggleButton } from "../../components/theme-toggle-button";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../hooks/useCart";
 import { showAlert } from "../../components/app-alert";
+import { useAppTheme } from "../../context/ThemeContext";
+import { announce } from "../../utils/announce";
 import { supabase } from "../../services/supabase";
 
 import {
@@ -59,6 +62,7 @@ async function fetchMenuData(): Promise<MenuItem[] | null> {
 
 export default function StudentMenuScreen() {
   const { colors: c, styles } = useThemedStyles(createStyles);
+  const { a11y } = useAppTheme();
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [search, setSearch] = useState("");
@@ -105,7 +109,9 @@ export default function StudentMenuScreen() {
     }
     setLastAddedItem(item.nombre);
     setShowToast(true);
-    setTimeout(() => setShowToast(false), 1500);
+    announce(`${item.nombre} agregado al carrito`);
+    // En modo accesible el aviso queda más tiempo para poder leerlo
+    setTimeout(() => setShowToast(false), a11y.longerMessages ? 4000 : 1500);
   };
 
   const query = normalize(search.trim());
@@ -125,15 +131,13 @@ export default function StudentMenuScreen() {
       {/* ✅ HEADER CON LOGOUT POSICIONADO CORRECTAMENTE */}
       <View style={styles.header}>
         <View style={styles.headerTextContainer}>
-          <Text style={styles.title}>Menú del Kiosco</Text>
+          <Text style={styles.title} accessibilityRole="header">Menú del Kiosco</Text>
           <Text style={styles.subtitle}>
             Seleccioná lo que quieras pedir hoy
           </Text>
         </View>
 
         <View style={styles.headerActions}>
-          <ThemeToggleButton />
-          <AssistantButton href="/(student)/asistente" />
           <Pressable
             style={({ pressed }) => [
               styles.logoutBtn,
@@ -142,10 +146,20 @@ export default function StudentMenuScreen() {
             onPress={async () => {
               await signOut();
             }}
+            accessibilityRole="button"
+            accessibilityLabel="Cerrar sesión"
           >
             <Ionicons name="log-out-outline" size={22} color={c.danger} />
+            {a11y.showLabels && <Text style={styles.logoutText}>Salir</Text>}
           </Pressable>
         </View>
+      </View>
+
+      {/* Asistente, tema y accesibilidad debajo del título */}
+      <View style={styles.toolsRow}>
+        <AccessibilityToggleButton />
+        <ThemeToggleButton />
+        <AssistantButton href="/(student)/asistente" />
       </View>
 
       <View style={styles.searchBox}>
@@ -160,13 +174,18 @@ export default function StudentMenuScreen() {
           autoCorrect={false}
         />
         {search.length > 0 && (
-          <Pressable onPress={() => setSearch("")} hitSlop={10}>
+          <Pressable
+            onPress={() => setSearch("")}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Borrar búsqueda"
+          >
             <Ionicons name="close-circle" size={18} color={c.textMuted} />
           </Pressable>
         )}
       </View>
 
-      <View style={styles.categoriesRow}>
+      <View style={styles.categoriesRow} accessibilityRole="tablist">
         {CATEGORIES.map((cat) => (
           <Pressable
             key={cat}
@@ -175,6 +194,9 @@ export default function StudentMenuScreen() {
               selectedCategory === cat && styles.categoryBtnActive,
             ]}
             onPress={() => setSelectedCategory(cat)}
+            accessibilityRole="tab"
+            accessibilityLabel={`Categoría ${cat}`}
+            accessibilityState={{ selected: selectedCategory === cat }}
           >
             <Text
               style={[
@@ -209,11 +231,23 @@ export default function StudentMenuScreen() {
               ]}
               onPress={() => handleAddToCart(item)}
               disabled={isDisabled}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.nombre}, ${formatPrice(item.precio)}, ${
+                !item.disponible
+                  ? "agotado"
+                  : item.stock != null && item.stock <= 5
+                    ? `quedan ${item.stock}`
+                    : "disponible"
+              }`}
+              accessibilityHint={isDisabled ? undefined : "Agrega el producto al carrito"}
+              accessibilityState={{ disabled: isDisabled }}
             >
               {hasImage && (
                 <Image
                   source={{ uri: item.imagen_url! }}
                   style={styles.image}
+                  accessible
+                  accessibilityLabel={`Foto de ${item.nombre}`}
                 />
               )}
 
@@ -255,6 +289,8 @@ export default function StudentMenuScreen() {
                 <Pressable
                   style={styles.addButton}
                   onPress={() => handleAddToCart(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Agregar ${item.nombre} al carrito`}
                 >
                   <Ionicons name="add" size={24} color={c.onAccent} />
                 </Pressable>
@@ -394,6 +430,9 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
 
   // ✅ ESTILOS DEL BOTÓN DE SALIR TIPO CÁPSULA
   logoutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     padding: 10,
     borderRadius: 12,
     backgroundColor: c.dangerSoft,
@@ -401,6 +440,15 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     borderColor: c.dangerBorder,
   },
   headerActions: { flexDirection: "row", gap: 10, marginLeft: 12 },
+  logoutText: { fontSize: 13, fontWeight: "700", color: c.danger },
+  toolsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    paddingHorizontal: 24,
+    paddingBottom: 12,
+    zIndex: 1,
+  },
   logoutBtnPressed: { opacity: 0.7, transform: [{ scale: 0.95 }] },
 
   searchBox: {
@@ -437,7 +485,10 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     borderWidth: 1,
     borderColor: c.border,
   },
-  categoryBtnActive: { backgroundColor: "#cd9443", borderColor: "#cd9443" },
+  categoryBtnActive: {
+    backgroundColor: c.categoryActiveStudent,
+    borderColor: c.categoryActiveStudent,
+  },
   categoryText: { fontSize: 13, fontWeight: "600", color: c.textSecondary },
   categoryTextActive: { color: c.onAccent, fontWeight: "700" },
 
@@ -490,15 +541,15 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 8,
     gap: 4,
   },
-  badgeInStock: { backgroundColor: "#87c397" },
-  badgeOutOfStock: { backgroundColor: "#b51212" },
+  badgeInStock: { backgroundColor: c.stockIn },
+  badgeOutOfStock: { backgroundColor: c.stockOut },
   stockText: { fontSize: 11, fontWeight: "700", color: c.onAccent },
 
   addButton: {
     width: 40,
     height: 40,
     borderRadius: 14,
-    backgroundColor: "#63c184",
+    backgroundColor: c.addProduct,
     justifyContent: "center",
     alignItems: "center",
     marginLeft: 12,

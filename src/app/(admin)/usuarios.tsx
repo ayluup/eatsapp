@@ -192,7 +192,7 @@ export default function UsuariosScreen() {
 
       <View style={styles.header}>
         <Text style={styles.headerSubtitle}>PANEL DE ADMINISTRACIÓN</Text>
-        <Text style={styles.title}>Usuarios y roles</Text>
+        <Text style={styles.title} accessibilityRole="header">Usuarios y roles</Text>
       </View>
 
       <View style={styles.searchBox}>

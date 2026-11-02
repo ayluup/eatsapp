@@ -47,7 +47,12 @@ export default function RecuperarScreen() {
         style={styles.flex}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable
+            style={styles.backBtn}
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Volver"
+          >
             <Ionicons name="arrow-back" size={22} color={c.text} />
           </Pressable>
 
@@ -62,7 +67,7 @@ export default function RecuperarScreen() {
 
             {sent ? (
               <>
-                <Text style={styles.title}>Revisá tu email</Text>
+                <Text style={styles.title} accessibilityRole="header">Revisá tu email</Text>
                 <Text style={styles.subtitle}>
                   Si {email.trim()} tiene una cuenta, te enviamos un link para
                   crear una contraseña nueva. Abrilo desde este celular.
@@ -73,7 +78,7 @@ export default function RecuperarScreen() {
               </>
             ) : (
               <>
-                <Text style={styles.title}>¿Olvidaste tu contraseña?</Text>
+                <Text style={styles.title} accessibilityRole="header">¿Olvidaste tu contraseña?</Text>
                 <Text style={styles.subtitle}>
                   Ingresá tu email y te enviamos un link para restablecerla.
                 </Text>

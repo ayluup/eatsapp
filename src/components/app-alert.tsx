@@ -2,7 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { ThemeColors } from "../constants/theme";
+import { useAppTheme } from "../context/ThemeContext";
 import { useThemedStyles } from "../hooks/use-themed-styles";
+import { announce } from "../utils/announce";
 
 // Carteles propios con el estilo de la app (los de Android son grises y no
 // siguen el tema). Se usan igual que Alert.alert:
@@ -96,6 +98,7 @@ export function showAlert(
 // Se monta una sola vez en el layout raíz
 export function AlertHost() {
   const { colors: c, styles } = useThemedStyles(createStyles);
+  const { reduceMotion } = useAppTheme();
   const [current, setCurrent] = useState<AlertRequest | null>(null);
   // El cartel abierto también en un ref: la cola se maneja fuera de setState
   const currentRef = useRef<AlertRequest | null>(null);
@@ -120,13 +123,18 @@ export function AlertHost() {
 
   useEffect(() => {
     if (!current) return;
-    scale.setValue(0.9);
+    // El lector de pantalla lee el cartel apenas aparece
+    announce([current.title, current.message].filter(Boolean).join(". "));
+    // Con "reducir movimiento" solo aparece con un fundido, sin rebote
+    scale.setValue(reduceMotion ? 1 : 0.9);
     opacity.setValue(0);
     Animated.parallel([
-      Animated.spring(scale, { toValue: 1, friction: 7, tension: 90, useNativeDriver: true }),
+      reduceMotion
+        ? Animated.delay(0)
+        : Animated.spring(scale, { toValue: 1, friction: 7, tension: 90, useNativeDriver: true }),
       Animated.timing(opacity, { toValue: 1, duration: 150, useNativeDriver: true }),
     ]).start();
-  }, [current, scale, opacity]);
+  }, [current, scale, opacity, reduceMotion]);
 
   // Cierra con animación y recién después ejecuta la acción del botón,
   // así una navegación no ocurre con el cartel todavía abierto.
@@ -136,7 +144,7 @@ export function AlertHost() {
     closingRef.current = true;
     Animated.parallel([
       Animated.timing(scale, {
-        toValue: 0.92,
+        toValue: reduceMotion ? 1 : 0.92,
         duration: 120,
         easing: Easing.in(Easing.quad),
         useNativeDriver: true,
@@ -175,13 +183,23 @@ export function AlertHost() {
   return (
     <Modal visible transparent animationType="none" onRequestClose={dismiss} statusBarTranslucent>
       <Animated.View style={[styles.overlay, { opacity }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
-        <Animated.View style={[styles.card, { transform: [{ scale }] }]}>
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={dismiss}
+          importantForAccessibility="no"
+          accessibilityElementsHidden
+        />
+        <Animated.View
+          style={[styles.card, { transform: [{ scale }] }]}
+          accessibilityViewIsModal
+        >
           <View style={[styles.iconCircle, { backgroundColor: c[type.bg] }]}>
             <Ionicons name={current.icon ?? type.icon} size={34} color={c[type.color]} />
           </View>
 
-          <Text style={styles.title}>{current.title}</Text>
+          <Text style={styles.title} accessibilityRole="header">
+            {current.title}
+          </Text>
           {!!current.message && <Text style={styles.message}>{current.message}</Text>}
 
           <View style={[styles.buttons, stacked && styles.buttonsStacked]}>

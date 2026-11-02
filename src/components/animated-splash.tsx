@@ -1,6 +1,7 @@
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
 import { Animated, Easing, StyleSheet, useColorScheme } from "react-native";
+import { useAppTheme } from "../context/ThemeContext";
 
 // El splash nativo se queda hasta que esta pantalla lo reemplaza
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -17,6 +18,7 @@ const MIN_DURATION = 1400;
 // carga la sesión y al terminar se agranda y se desvanece mostrando la app.
 export function AnimatedSplash({ ready }: { ready: boolean }) {
   const dark = useColorScheme() === "dark";
+  const { reduceMotion } = useAppTheme();
   const [minTimeDone, setMinTimeDone] = useState(false);
   const [visible, setVisible] = useState(true);
   const scale = useState(() => new Animated.Value(1))[0];
@@ -27,6 +29,8 @@ export function AnimatedSplash({ ready }: { ready: boolean }) {
   // Entrada: se achica un poco, gira apenas y rebota a su tamaño
   const onLayout = () => {
     SplashScreen.hide();
+    // Con "reducir movimiento" el logo queda quieto
+    if (reduceMotion) return;
     Animated.sequence([
       Animated.parallel([
         Animated.timing(scale, {
@@ -68,7 +72,7 @@ export function AnimatedSplash({ ready }: { ready: boolean }) {
     scale.stopAnimation();
     Animated.parallel([
       Animated.timing(scale, {
-        toValue: 1.6,
+        toValue: reduceMotion ? 1 : 1.6,
         duration: 450,
         easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
@@ -81,7 +85,7 @@ export function AnimatedSplash({ ready }: { ready: boolean }) {
         useNativeDriver: true,
       }),
     ]).start(() => setVisible(false));
-  }, [ready, minTimeDone, scale, logoOpacity, screenOpacity]);
+  }, [ready, minTimeDone, scale, logoOpacity, screenOpacity, reduceMotion]);
 
   if (!visible) return null;
 
