@@ -2,9 +2,11 @@ import { Session, User } from "@supabase/supabase-js";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { Alert, Platform } from "react-native";
+import { Platform } from "react-native";
+import { unregisterPushNotifications } from "../services/notifications";
 import { supabase } from "../services/supabase";
 import { getAuthErrorMessage } from "../utils/auth-errors";
+import { showAlert } from "../components/app-alert";
 
 export type UserRole = "student" | "admin" | "superadmin";
 
@@ -99,7 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     handledUrls.current.add(url);
 
     if (params.error_description) {
-      Alert.alert(
+      showAlert(
         "Link inválido",
         params.error_code === "otp_expired"
           ? "El link venció o ya fue usado. Pedí uno nuevo."
@@ -119,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (error) {
       setRecovering(false);
-      Alert.alert("Error", getAuthErrorMessage(error));
+      showAlert("Error", getAuthErrorMessage(error));
     }
     return true;
   };
@@ -252,6 +254,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     setRecovering(false);
+    // Con la sesión todavía activa, si no RLS no deja borrar el token
+    await unregisterPushNotifications().catch(() => {});
     const { error } = await supabase.auth.signOut();
     // Si falla el servidor (ej. sin conexión) Supabase no borra la sesión
     // guardada: la borramos igual en el dispositivo.

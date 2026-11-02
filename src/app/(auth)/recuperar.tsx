@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useSafeRouter } from "../../hooks/use-safe-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -25,7 +25,7 @@ export default function RecuperarScreen() {
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const { sendPasswordReset } = useAuth();
-  const router = useRouter();
+  const router = useSafeRouter();
 
   const handleSend = async () => {
     if (!email.trim()) return setError("Ingresá tu email");

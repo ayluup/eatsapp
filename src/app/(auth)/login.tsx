@@ -3,7 +3,6 @@ import { Link } from "expo-router";
 import { useState } from "react";
 import {
     ActivityIndicator,
-    Alert,
     Animated,
     Easing,
     KeyboardAvoidingView,
@@ -20,6 +19,7 @@ import { useAuth } from "../../context/AuthContext";
 import { isValidEmail, MIN_PASSWORD_LENGTH } from "../../utils/auth-errors";
 import { ThemeColors } from "../../constants/theme";
 import { useThemedStyles } from "../../hooks/use-themed-styles";
+import { showAlert } from "../../components/app-alert";
 
 export default function LoginScreen() {
   const { colors: c, styles } = useThemedStyles(createStyles);
@@ -73,13 +73,15 @@ export default function LoginScreen() {
   const handleSubmit = async () => {
     const cleanEmail = email.trim();
     if (!cleanEmail || !password)
-      return Alert.alert("Error", "Completá todos los campos");
+      return showAlert("Faltan datos", "Completá tu email y tu contraseña.", undefined, { type: "warning" });
     if (!isValidEmail(cleanEmail))
-      return Alert.alert("Error", "Ingresá un email válido");
+      return showAlert("Email inválido", "Revisá que esté bien escrito, por ejemplo nombre@gmail.com.");
     if (!isLogin && password.length < MIN_PASSWORD_LENGTH)
-      return Alert.alert(
-        "Error",
-        `La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`,
+      return showAlert(
+        "Contraseña muy corta",
+        `La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`,
+        undefined,
+        { type: "warning", icon: "lock-closed" },
       );
 
     setLoading(true);
@@ -87,12 +89,12 @@ export default function LoginScreen() {
       if (isLogin) {
         // Si sale bien, el layout redirige solo a la pantalla del rol
         const { error } = await signIn(cleanEmail, password);
-        if (error) Alert.alert("No se pudo iniciar sesión", error);
+        if (error) showAlert("No se pudo iniciar sesión", error);
       } else {
         const { error, needsConfirmation } = await signUp(cleanEmail, password);
-        if (error) return Alert.alert("No se pudo crear la cuenta", error);
+        if (error) return showAlert("No se pudo crear la cuenta", error);
         if (needsConfirmation) {
-          Alert.alert(
+          showAlert(
             "Confirmá tu email",
             "Te enviamos un link para activar tu cuenta. Abrilo desde este celular.",
           );
@@ -108,7 +110,7 @@ export default function LoginScreen() {
     setGoogleLoading(true);
     const { error } = await signInWithGoogle();
     setGoogleLoading(false);
-    if (error) Alert.alert("No se pudo iniciar sesión con Google", error);
+    if (error) showAlert("No se pudo iniciar sesión con Google", error);
   };
 
   // ✅ Animación de escala para botones

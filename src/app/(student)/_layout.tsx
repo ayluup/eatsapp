@@ -14,6 +14,7 @@ export default function StudentLayout() {
       <Stack.Screen name="carrito" />
       <Stack.Screen name="mis-pedidos" />
       <Stack.Screen name="perfil" />
+      <Stack.Screen name="asistente" />
     </Stack>
   );
 }

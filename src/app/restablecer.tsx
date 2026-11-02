@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -17,6 +16,7 @@ import { useAuth } from "../context/AuthContext";
 import { MIN_PASSWORD_LENGTH } from "../utils/auth-errors";
 import { ThemeColors } from "../constants/theme";
 import { useThemedStyles } from "../hooks/use-themed-styles";
+import { showAlert } from "../components/app-alert";
 
 // Se llega acá desde el link del email de recuperación.
 // En ese momento el usuario ya tiene una sesión temporal de Supabase.
@@ -43,7 +43,7 @@ export default function RestablecerScreen() {
 
     if (error) return setError(error);
 
-    Alert.alert("Listo", "Tu contraseña se cambió correctamente.");
+    showAlert("Listo", "Tu contraseña se cambió correctamente.");
     finishRecovery(); // queda logueado y va a su pantalla principal
   };
 

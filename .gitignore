@@ -43,3 +43,8 @@ example
 /android
 
 .env
+# Supabase CLI
+supabase/.temp/
+
+# Clave de Firebase (FCM) para EAS: nunca al repo
+*firebase-adminsdk*.json

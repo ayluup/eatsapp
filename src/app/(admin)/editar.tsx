@@ -1,12 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { useLocalSearchParams, useNavigation, useRouter } from "expo-router"; // ✅ Agregamos useNavigation
+import { useLocalSearchParams, useNavigation } from "expo-router"; // ✅ Agregamos useNavigation
+import { useSafeRouter } from "../../hooks/use-safe-router";
 import { useEffect, useLayoutEffect, useState } from "react"; // ✅ Agregamos useLayoutEffect
+import { saveProductImage } from "../../services/product-images";
 import { supabase } from "../../services/supabase";
 
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   Pressable,
   Image as RNImage,
@@ -19,6 +20,7 @@ import {
 } from "react-native";
 import { ThemeColors } from "../../constants/theme";
 import { useThemedStyles } from "../../hooks/use-themed-styles";
+import { showAlert } from "../../components/app-alert";
 
 export default function AdminEditarScreen() {
   const { colors: c, styles } = useThemedStyles(createStyles);
@@ -33,7 +35,7 @@ export default function AdminEditarScreen() {
   const [fetching, setFetching] = useState(true);
   const [showOptions, setShowOptions] = useState(false);
 
-  const router = useRouter();
+  const router = useSafeRouter();
   const navigation = useNavigation(); // ✅ Obtenemos la navegación
 
   // ✅ ESTO OCULTA LA BARRA BLANCA NATIVA DE EXPO ROUTER
@@ -58,8 +60,8 @@ export default function AdminEditarScreen() {
         setCategoria(data.categoria || "Comida");
         setBase64Image(data.imagen_url);
         setDisponible(data.disponible);
-      } catch (err) {
-        Alert.alert("Error", "No se pudo cargar el producto");
+      } catch {
+        showAlert("Error", "No se pudo cargar el producto");
         router.back();
       } finally {
         setFetching(false);
@@ -67,7 +69,7 @@ export default function AdminEditarScreen() {
     };
 
     if (id) fetchProduct();
-  }, [id]);
+  }, [id, router]);
 
   const takePhoto = async () => {
     const result = await ImagePicker.launchCameraAsync({
@@ -99,7 +101,7 @@ export default function AdminEditarScreen() {
 
   const handleGuardar = async () => {
     if (!nombre.trim() || !precio.trim()) {
-      Alert.alert(
+      showAlert(
         "Campos requeridos",
         "Por favor completá el nombre y el precio.",
       );
@@ -108,7 +110,7 @@ export default function AdminEditarScreen() {
 
     const precioNum = parseFloat(precio.replace(/\./g, "").replace(",", "."));
     if (isNaN(precioNum) || precioNum <= 0) {
-      Alert.alert("Precio inválido", "Ingresá un precio mayor a 0.");
+      showAlert("Precio inválido", "Ingresá un precio mayor a 0.");
       return;
     }
 
@@ -122,20 +124,20 @@ export default function AdminEditarScreen() {
           precio: precioNum,
           categoria: categoria,
           disponible: disponible,
-          imagen_url: base64Image || null,
+          imagen_url: await saveProductImage(base64Image),
         })
         .eq("id", Number(id));
 
       if (error) throw error;
 
-      Alert.alert(
-        "✅ Producto Actualizado",
+      showAlert(
+        "Producto actualizado",
         `"${nombre}" fue modificado correctamente.`,
       );
       router.back();
     } catch (err: any) {
       console.error("Error al actualizar:", err);
-      Alert.alert("Error", err.message || "No se pudo actualizar el producto");
+      showAlert("Error", err.message || "No se pudo actualizar el producto");
     } finally {
       setLoading(false);
     }

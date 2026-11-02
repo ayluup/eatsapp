@@ -1,9 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect } from "expo-router";
+import { useSafeRouter } from "../../hooks/use-safe-router";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -11,10 +11,11 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useAuth, UserRole } from "../../context/AuthContext";
-import { supabase } from "../../services/supabase";
 import { ThemeColors } from "../../constants/theme";
+import { useAuth, UserRole } from "../../context/AuthContext";
 import { useThemedStyles } from "../../hooks/use-themed-styles";
+import { supabase } from "../../services/supabase";
+import { showAlert } from "../../components/app-alert";
 
 const ROLE_LABELS: Record<UserRole, string> = {
   student: "Estudiante",
@@ -36,7 +37,7 @@ export default function UsuariosScreen() {
   const [search, setSearch] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const { user } = useAuth();
-  const router = useRouter();
+  const router = useSafeRouter();
 
   const fetchUsers = useCallback(async () => {
     setLoadError(null);
@@ -71,7 +72,7 @@ export default function UsuariosScreen() {
 
     if (error) {
       // El mensaje viene del trigger proteger_rol en la base
-      Alert.alert("No se pudo cambiar el rol", error.message);
+      showAlert("No se pudo cambiar el rol", error.message);
       return;
     }
     setUsers((prev) =>
@@ -81,7 +82,7 @@ export default function UsuariosScreen() {
 
   const confirmChangeRole = (target: Profile) => {
     const newRole: UserRole = target.role === "admin" ? "student" : "admin";
-    Alert.alert(
+    showAlert(
       newRole === "admin" ? "Hacer administrador" : "Quitar administrador",
       newRole === "admin"
         ? `${target.email} va a poder gestionar el menú y los pedidos.`
@@ -170,7 +171,11 @@ export default function UsuariosScreen() {
         />
       ) : loadError ? (
         <View style={styles.empty}>
-          <Ionicons name="cloud-offline-outline" size={48} color={c.textMuted} />
+          <Ionicons
+            name="cloud-offline-outline"
+            size={48}
+            color={c.textMuted}
+          />
           <Text style={styles.emptyText}>{loadError}</Text>
           <Pressable style={styles.retryBtn} onPress={fetchUsers}>
             <Text style={styles.retryText}>Reintentar</Text>
@@ -194,21 +199,21 @@ export default function UsuariosScreen() {
         <View style={styles.floatingNav}>
           <Pressable
             style={styles.navItemInactive}
-            onPress={() => router.push("/(admin)/menu")}
+            onPress={() => router.dismissTo("/(admin)/menu")}
           >
             <Ionicons name="restaurant-outline" size={24} color={c.textMuted} />
             <Text style={styles.navTextInactive}>Menú</Text>
           </Pressable>
           <Pressable
             style={styles.navItemInactive}
-            onPress={() => router.push("/agregar")}
+            onPress={() => router.replace("/agregar")}
           >
             <Ionicons name="add-circle-outline" size={24} color={c.textMuted} />
             <Text style={styles.navTextInactive}>Agregar</Text>
           </Pressable>
           <Pressable
             style={styles.navItemInactive}
-            onPress={() => router.push("/(admin)/pedidos")}
+            onPress={() => router.replace("/(admin)/pedidos")}
           >
             <Ionicons name="list-outline" size={24} color={c.textMuted} />
             <Text style={styles.navTextInactive}>Pedidos</Text>
@@ -219,9 +224,13 @@ export default function UsuariosScreen() {
           </Pressable>
           <Pressable
             style={styles.navItemInactive}
-            onPress={() => router.push("/(admin)/perfil")}
+            onPress={() => router.replace("/(admin)/perfil")}
           >
-            <Ionicons name="person-circle-outline" size={24} color={c.textMuted} />
+            <Ionicons
+              name="person-circle-outline"
+              size={24}
+              color={c.textMuted}
+            />
             <Text style={styles.navTextInactive}>Perfil</Text>
           </Pressable>
         </View>
@@ -230,127 +239,126 @@ export default function UsuariosScreen() {
   );
 }
 
-const createStyles = (c: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.surface },
-  bgTop: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 220,
-    backgroundColor: c.decorAdmin,
-    borderBottomRightRadius: 80,
-    borderBottomLeftRadius: 80,
-  },
-  header: { paddingTop: 64, paddingHorizontal: 24, paddingBottom: 16 },
-  headerSubtitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: c.textSecondary,
-    letterSpacing: 1,
-  },
-  title: { fontSize: 28, fontWeight: "800", color: c.text, marginTop: 4 },
-  searchBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: c.surface,
-    borderRadius: 16,
-    marginHorizontal: 24,
-    marginBottom: 12,
-    paddingHorizontal: 16,
-    height: 48,
-    borderWidth: 1,
-    borderColor: c.border,
-  },
-  searchInput: { flex: 1, marginLeft: 8, fontSize: 15, color: c.text },
-  loading: { marginTop: 48 },
-  list: { paddingHorizontal: 24, paddingBottom: 140, gap: 10 },
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: c.surface,
-    borderRadius: 20,
-    padding: 14,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    shadowColor: c.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 2,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: c.surfaceMuted,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarAdmin: { backgroundColor: c.accentSoft },
-  info: { flex: 1 },
-  email: { fontSize: 15, fontWeight: "600", color: c.text },
-  me: { color: c.textMuted, fontWeight: "500" },
-  role: { fontSize: 13, color: c.textSecondary, marginTop: 2 },
-  roleAdmin: { color: c.accent, fontWeight: "700" },
-  roleBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: c.surfaceMuted,
-  },
-  roleBtnPressed: { opacity: 0.7 },
-  roleBtnText: { fontSize: 13, fontWeight: "700", color: c.textBody },
-  empty: { alignItems: "center", marginTop: 48, gap: 12, padding: 24 },
-  emptyText: { color: c.textSecondary, fontSize: 15, textAlign: "center" },
-  retryBtn: {
-    backgroundColor: c.accent,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  retryText: { color: c.onAccent, fontWeight: "700" },
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.surface },
+    bgTop: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 220,
+      backgroundColor: c.decorAdmin,
+      borderBottomRightRadius: 80,
+      borderBottomLeftRadius: 80,
+    },
+    header: { paddingTop: 64, paddingHorizontal: 24, paddingBottom: 16 },
+    headerSubtitle: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: c.textSecondary,
+      letterSpacing: 1,
+    },
+    title: { fontSize: 28, fontWeight: "800", color: c.text, marginTop: 4 },
+    searchBox: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: c.surface,
+      borderRadius: 16,
+      marginHorizontal: 24,
+      marginBottom: 12,
+      paddingHorizontal: 16,
+      height: 48,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    searchInput: { flex: 1, marginLeft: 8, fontSize: 15, color: c.text },
+    loading: { marginTop: 48 },
+    list: { paddingHorizontal: 24, paddingBottom: 140, gap: 10 },
+    card: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: c.surface,
+      borderRadius: 20,
+      padding: 14,
+      gap: 12,
+      borderWidth: 1,
+      borderColor: c.borderSoft,
+      shadowColor: c.shadow,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.05,
+      shadowRadius: 12,
+      elevation: 2,
+    },
+    avatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: c.surfaceMuted,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    avatarAdmin: { backgroundColor: c.accentSoft },
+    info: { flex: 1 },
+    email: { fontSize: 15, fontWeight: "600", color: c.text },
+    me: { color: c.textMuted, fontWeight: "500" },
+    role: { fontSize: 13, color: c.textSecondary, marginTop: 2 },
+    roleAdmin: { color: c.accent, fontWeight: "700" },
+    roleBtn: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 12,
+      backgroundColor: c.surfaceMuted,
+    },
+    roleBtnPressed: { opacity: 0.7 },
+    roleBtnText: { fontSize: 13, fontWeight: "700", color: c.textBody },
+    empty: { alignItems: "center", marginTop: 48, gap: 12, padding: 24 },
+    emptyText: { color: c.textSecondary, fontSize: 15, textAlign: "center" },
+    retryBtn: {
+      backgroundColor: c.accent,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: 12,
+    },
+    retryText: { color: c.onAccent, fontWeight: "700" },
 
-  floatingNavWrapper: {
-    position: "absolute",
-    bottom: 32,
-    left: 24,
-    right: 24,
-    zIndex: 10,
-    alignItems: "center",
-  },
-  floatingNav: {
-    flexDirection: "row",
-    backgroundColor: c.surface,
-    borderRadius: 32,
-    padding: 8,
-    shadowColor: c.shadow,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    elevation: 12,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-  },
-  navItemActive: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 24,
-  },
-  navItemInactive: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 24,
-  },
-  navTextActive: { fontSize: 12, fontWeight: "700", color: c.accent },
-  navTextInactive: { fontSize: 12, fontWeight: "600", color: c.textMuted },
-});
+    floatingNavWrapper: {
+      position: "absolute",
+      bottom: 32,
+      left: 24,
+      right: 24,
+      zIndex: 10,
+      alignItems: "center",
+    },
+    floatingNav: {
+      flexDirection: "row",
+      backgroundColor: c.surface,
+      borderRadius: 32,
+      padding: 8,
+      shadowColor: c.shadow,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.12,
+      shadowRadius: 24,
+      elevation: 12,
+      borderWidth: 1,
+      borderColor: c.borderSoft,
+    },
+    navItemActive: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
+      paddingVertical: 12,
+      borderRadius: 24,
+    },
+    navItemInactive: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
+      paddingVertical: 12,
+      borderRadius: 24,
+    },
+    navTextActive: { fontSize: 12, fontWeight: "700", color: c.accent },
+    navTextInactive: { fontSize: 12, fontWeight: "600", color: c.textMuted },
+  });

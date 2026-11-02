@@ -1,12 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useRouter } from "expo-router";
-import { useEffect, useLayoutEffect, useState } from "react";
-import { Animated } from "react-native";
+import { useFocusEffect, useNavigation } from "expo-router";
+import { useSafeRouter } from "../../hooks/use-safe-router";
+import { useCallback, useLayoutEffect, useState } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AssistantButton } from "../../components/assistant-button";
+import { ThemeToggleButton } from "../../components/theme-toggle-button";
 import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../services/supabase";
 
 import {
-  Alert,
+  Animated,
   FlatList,
   Image,
   Pressable,
@@ -16,6 +19,7 @@ import {
 } from "react-native";
 import { ThemeColors } from "../../constants/theme";
 import { useThemedStyles } from "../../hooks/use-themed-styles";
+import { showAlert } from "../../components/app-alert";
 
 export type Menu = {
   id: number;
@@ -31,13 +35,30 @@ export type Menu = {
 const formatPrice = (price: number) => "$" + price.toLocaleString("es-AR");
 const CATEGORIES = ["Todos", "Comida", "Gaseosas", "Bebidas"];
 
+// Trae los productos (null si falló)
+async function fetchMenusData(): Promise<Menu[] | null> {
+  try {
+    const { data, error } = await supabase
+      .from("menus")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (err: any) {
+    console.error("Error cargando menú:", err.message);
+    showAlert("Error", "No se pudieron cargar los productos");
+    return null;
+  }
+}
+
 export default function AdminMenuScreen() {
   const { colors: c, styles } = useThemedStyles(createStyles);
   const [menus, setMenus] = useState<Menu[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("Todos");
 
-  const router = useRouter();
+  const router = useSafeRouter();
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { signOut, role } = useAuth();
 
@@ -49,28 +70,40 @@ export default function AdminMenuScreen() {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  useEffect(() => {
-    fetchMenus();
-  }, []);
+  const applyMenus = (data: Menu[] | null) => {
+    if (data) setMenus(data);
+    setLoading(false);
+  };
 
-  const fetchMenus = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("menus")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      setMenus(data || []);
-    } catch (err: any) {
-      console.error("Error cargando menú:", err.message);
-      Alert.alert("Error", "No se pudieron cargar los productos");
-    } finally {
-      setLoading(false);
+  const fetchMenus = () => fetchMenusData().then(applyMenus);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchMenusData().then(applyMenus);
+    }, []),
+  );
+
+  const toggleStock = async (item: Menu) => {
+    const disponible = !item.disponible;
+    setMenus((prev) =>
+      prev.map((m) => (m.id === item.id ? { ...m, disponible } : m)),
+    );
+    const { error } = await supabase
+      .from("menus")
+      .update({ disponible })
+      .eq("id", item.id);
+    if (error) {
+      setMenus((prev) =>
+        prev.map((m) =>
+          m.id === item.id ? { ...m, disponible: !disponible } : m,
+        ),
+      );
+      showAlert("Error", "No se pudo cambiar el stock");
     }
   };
 
   const handleDelete = async (id: number) => {
-    Alert.alert("Eliminar Producto", "¿Estás segura?", [
+    showAlert("Eliminar Producto", "¿Estás segura?", [
       { text: "Cancelar", style: "cancel" },
       {
         text: "Eliminar",
@@ -83,8 +116,8 @@ export default function AdminMenuScreen() {
               .eq("id", id);
             if (error) throw error;
             setMenus((prev) => prev.filter((m) => m.id !== id));
-          } catch (err) {
-            Alert.alert("Error", "No se pudo eliminar");
+          } catch {
+            showAlert("Error", "No se pudo eliminar");
           }
         },
       },
@@ -116,22 +149,35 @@ export default function AdminMenuScreen() {
       <View style={styles.bgTop} />
       <View style={styles.bgBottom} />
 
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerSubtitle}>PANEL DE ADMINISTRACIÓN</Text>
-          <Text style={styles.title}>Gestión de Menú</Text>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+        <View style={styles.headerText}>
+          <Text style={styles.headerSubtitle} numberOfLines={1}>
+            ADMINISTRACIÓN
+          </Text>
+          <Text
+            style={styles.title}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
+          >
+            Gestión de Menú
+          </Text>
         </View>
-        <Pressable
-          style={({ pressed }) => [
-            styles.logoutBtn,
-            pressed && styles.logoutBtnPressed,
-          ]}
-          onPress={async () => {
-            await signOut();
-          }}
-        >
-          <Ionicons name="log-out-outline" size={22} color={c.danger} />
-        </Pressable>
+        <View style={styles.headerActions}>
+          <ThemeToggleButton />
+          <AssistantButton href="/(admin)/asistente" />
+          <Pressable
+            style={({ pressed }) => [
+              styles.logoutBtn,
+              pressed && styles.logoutBtnPressed,
+            ]}
+            onPress={async () => {
+              await signOut();
+            }}
+          >
+            <Ionicons name="log-out-outline" size={22} color={c.danger} />
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.categoriesRow}>
@@ -140,7 +186,7 @@ export default function AdminMenuScreen() {
             key={cat}
             style={{
               flex: 1,
-              transform: [{ scale: categoryScale[index] }], // Solo escala, sin translateY
+              transform: [{ scale: categoryScale[index] }],
             }}
           >
             <Pressable
@@ -157,6 +203,9 @@ export default function AdminMenuScreen() {
                   styles.categoryText,
                   selectedCategory === cat && styles.categoryTextActive,
                 ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
               >
                 {cat}
               </Text>
@@ -168,7 +217,10 @@ export default function AdminMenuScreen() {
       <FlatList
         data={visibleItems}
         keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[
+          styles.list,
+          { paddingBottom: insets.bottom + 130 },
+        ]}
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => {
           const hasImage = !!item.imagen_url;
@@ -189,18 +241,31 @@ export default function AdminMenuScreen() {
                 </View>
               )}
               <View style={styles.info}>
-                <Text style={styles.name}>{item.nombre}</Text>
+                <Text style={styles.name} numberOfLines={2}>
+                  {item.nombre}
+                </Text>
                 <Text style={styles.desc} numberOfLines={2}>
                   {item.descripcion || "Sin descripción"}
                 </Text>
                 <Text style={styles.price}>{formatPrice(item.precio)}</Text>
                 <View style={styles.badgesRow}>
                   <Text style={styles.catBadge}>{item.categoria}</Text>
-                  <View
-                    style={[
+                  <Pressable
+                    style={({ pressed }) => [
                       styles.stockBadge,
                       item.disponible ? styles.inStock : styles.outOfStock,
+                      pressed && styles.stockPressed,
                     ]}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      toggleStock(item);
+                    }}
+                    hitSlop={8}
+                    accessibilityLabel={
+                      item.disponible
+                        ? "Marcar como agotado"
+                        : "Marcar en stock"
+                    }
                   >
                     <Ionicons
                       name={
@@ -219,7 +284,12 @@ export default function AdminMenuScreen() {
                     >
                       {item.disponible ? "En Stock" : "Agotado"}
                     </Text>
-                  </View>
+                    <Ionicons
+                      name="swap-horizontal"
+                      size={12}
+                      color={item.disponible ? c.successStrong : c.dangerStrong}
+                    />
+                  </Pressable>
                 </View>
               </View>
               <Pressable
@@ -232,7 +302,11 @@ export default function AdminMenuScreen() {
                   handleDelete(item.id);
                 }}
               >
-                <Ionicons name="trash-outline" size={22} color={c.textSecondary} />
+                <Ionicons
+                  name="trash-outline"
+                  size={22}
+                  color={c.textSecondary}
+                />
               </Pressable>
             </Pressable>
           );
@@ -240,7 +314,11 @@ export default function AdminMenuScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconBox}>
-              <Ionicons name="fast-food-outline" size={56} color={c.accentStrong} />
+              <Ionicons
+                name="fast-food-outline"
+                size={56}
+                color={c.accentStrong}
+              />
             </View>
             <Text style={styles.emptyTitle}>
               {selectedCategory === "Todos"
@@ -258,25 +336,31 @@ export default function AdminMenuScreen() {
         onRefresh={fetchMenus}
       />
 
-      <View style={styles.floatingNavWrapper}>
+      <View style={[styles.floatingNavWrapper, { bottom: insets.bottom + 16 }]}>
         <View style={styles.floatingNav}>
           <Pressable style={styles.navItemActive}>
             <Ionicons name="restaurant" size={24} color={c.accent} />
-            <Text style={styles.navTextActive}>Menú</Text>
+            <Text style={styles.navTextActive} numberOfLines={1}>
+              Menú
+            </Text>
           </Pressable>
           <Pressable
             style={styles.navItemInactive}
             onPress={() => router.push("/agregar")}
           >
             <Ionicons name="add-circle" size={24} color={c.textMuted} />
-            <Text style={styles.navTextInactive}>Agregar</Text>
+            <Text style={styles.navTextInactive} numberOfLines={1}>
+              Agregar
+            </Text>
           </Pressable>
           <Pressable
             style={styles.navItemInactive}
             onPress={() => router.push("/(admin)/pedidos")}
           >
             <Ionicons name="list" size={24} color={c.textMuted} />
-            <Text style={styles.navTextInactive}>Pedidos</Text>
+            <Text style={styles.navTextInactive} numberOfLines={1}>
+              Pedidos
+            </Text>
           </Pressable>
 
           {role === "superadmin" && (
@@ -285,15 +369,23 @@ export default function AdminMenuScreen() {
               onPress={() => router.push("/(admin)/usuarios")}
             >
               <Ionicons name="people-outline" size={24} color={c.textMuted} />
-              <Text style={styles.navTextInactive}>Usuarios</Text>
+              <Text style={styles.navTextInactive} numberOfLines={1}>
+                Usuarios
+              </Text>
             </Pressable>
           )}
           <Pressable
             style={styles.navItemInactive}
             onPress={() => router.push("/(admin)/perfil")}
           >
-            <Ionicons name="person-circle-outline" size={24} color={c.textMuted} />
-            <Text style={styles.navTextInactive}>Perfil</Text>
+            <Ionicons
+              name="person-circle-outline"
+              size={24}
+              color={c.textMuted}
+            />
+            <Text style={styles.navTextInactive} numberOfLines={1}>
+              Perfil
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -301,248 +393,270 @@ export default function AdminMenuScreen() {
   );
 }
 
-const createStyles = (c: ThemeColors) => StyleSheet.create({
-  container: { flex: 1 },
-  bgTop: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: "30%",
-    backgroundColor: c.decorAdmin,
-    borderBottomRightRadius: 80,
-    borderBottomLeftRadius: 80,
-    zIndex: 0,
-  },
-  bgBottom: {
-    position: "absolute",
-    top: "48%",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: c.surfaceAlt,
-    borderTopLeftRadius: 80,
-    borderTopRightRadius: 80,
-    zIndex: 0,
-  },
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1 },
+    bgTop: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: "30%",
+      backgroundColor: c.decorAdmin,
+      borderBottomRightRadius: 80,
+      borderBottomLeftRadius: 80,
+      zIndex: 0,
+    },
+    bgBottom: {
+      position: "absolute",
+      top: "48%",
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: c.surfaceAlt,
+      borderTopLeftRadius: 80,
+      borderTopRightRadius: 80,
+      zIndex: 0,
+    },
 
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: c.surfaceAlt,
-  },
-  loadingOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: "48%",
-    backgroundColor: c.border,
-    borderBottomRightRadius: 80,
-    borderBottomLeftRadius: 20,
-    zIndex: 0,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 15,
-    fontWeight: "600",
-    color: c.textSecondary,
-    letterSpacing: 0.3,
-    zIndex: 1,
-  },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: c.surfaceAlt,
+    },
+    loadingOverlay: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: "48%",
+      backgroundColor: c.border,
+      borderBottomRightRadius: 80,
+      borderBottomLeftRadius: 20,
+      zIndex: 0,
+    },
+    loadingText: {
+      marginTop: 16,
+      fontSize: 15,
+      fontWeight: "600",
+      color: c.textSecondary,
+      letterSpacing: 0.3,
+      zIndex: 1,
+    },
 
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 16,
-    zIndex: 1,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: c.textSecondary,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 1.2,
-    marginBottom: 4,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: c.text,
-    letterSpacing: -0.5,
-  },
-  logoutBtn: { padding: 10, borderRadius: 12, backgroundColor: c.dangerSoft },
-  logoutBtnPressed: { opacity: 0.7, transform: [{ scale: 0.95 }] },
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: 12,
+      paddingHorizontal: 20,
+      paddingBottom: 12,
+      zIndex: 1,
+    },
 
-  categoriesRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    gap: 8,
-    zIndex: 1,
-  },
-  categoryBtn: {
-    height: 38,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 19,
-    backgroundColor: c.surface,
-    borderWidth: 1,
-    borderColor: c.border,
-  },
-  categoryBtnActive: {
-    backgroundColor: "#289397cb",
-    borderColor: "transparent",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  categoryText: { fontSize: 13, fontWeight: "600", color: c.textSecondary },
-  categoryTextActive: { color: c.onAccent, fontWeight: "700" },
+    headerText: { flex: 1, minWidth: 0 },
+    headerSubtitle: {
+      fontSize: 12,
+      color: c.textSecondary,
+      fontWeight: "700",
+      textTransform: "uppercase",
+      letterSpacing: 1.2,
+      marginBottom: 4,
+    },
+    title: {
+      fontSize: 26,
+      fontWeight: "800",
+      color: c.text,
+      letterSpacing: -0.5,
+    },
+    logoutBtn: { padding: 10, borderRadius: 12, backgroundColor: c.dangerSoft },
+    headerActions: { flexDirection: "row", gap: 8, flexShrink: 0 },
+    logoutBtnPressed: { opacity: 0.7, transform: [{ scale: 0.95 }] },
 
-  list: {
-    paddingHorizontal: 24,
-    paddingTop: 8,
-    paddingBottom: 140,
-    alignItems: "center",
-    zIndex: 1,
-  },
-  card: {
-    width: "100%",
-    maxWidth: 320,
-    flexDirection: "row",
-    backgroundColor: c.surface,
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 14,
-    alignItems: "center",
-    shadowColor: c.shadow,
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-  },
-  cardPressed: { transform: [{ scale: 0.98 }], opacity: 0.95 },
+    categoriesRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      gap: 6,
+      zIndex: 1,
+    },
+    categoryBtn: {
+      height: 38,
+      paddingHorizontal: 6,
+      justifyContent: "center",
+      alignItems: "center",
+      borderRadius: 19,
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    categoryBtnActive: {
+      backgroundColor: "#289397cb",
+      borderColor: "transparent",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+    categoryText: { fontSize: 13, fontWeight: "600", color: c.textSecondary },
+    categoryTextActive: { color: c.onAccent, fontWeight: "700" },
 
-  imageContainer: { marginRight: 16 },
-  productImage: {
-    width: 72,
-    height: 72,
-    borderRadius: 16,
-    backgroundColor: c.surfaceMuted,
-  },
+    list: {
+      paddingHorizontal: 20,
+      paddingTop: 4,
+      alignItems: "center",
+      zIndex: 1,
+    },
+    card: {
+      width: "100%",
+      maxWidth: 320,
+      flexDirection: "row",
+      backgroundColor: c.surface,
+      borderRadius: 20,
+      padding: 14,
+      marginBottom: 14,
+      alignItems: "center",
+      shadowColor: c.shadow,
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      elevation: 4,
+      borderWidth: 1,
+      borderColor: c.borderSoft,
+    },
+    cardPressed: { transform: [{ scale: 0.98 }], opacity: 0.95 },
 
-  info: { flex: 1, paddingRight: 6 },
-  name: { fontSize: 16, fontWeight: "700", color: c.text, marginBottom: 4 },
-  desc: { fontSize: 13, color: c.textSecondary, lineHeight: 18, marginBottom: 8 },
-  price: { fontSize: 18, fontWeight: "800", color: c.accentStrong, marginBottom: 8 },
+    imageContainer: { marginRight: 12 },
+    productImage: {
+      width: 64,
+      height: 64,
+      borderRadius: 16,
+      backgroundColor: c.surfaceMuted,
+    },
 
-  badgesRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap",
-  },
-  catBadge: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: c.textBody,
-    backgroundColor: c.surfaceMuted,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  stockBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  inStock: { backgroundColor: c.successSoft },
-  outOfStock: { backgroundColor: c.dangerSoft },
-  stockText: { fontSize: 11, fontWeight: "700" },
-  inStockText: { color: c.successStrong },
-  outOfStockText: { color: c.dangerStrong },
+    info: { flex: 1, minWidth: 0, paddingRight: 6 },
+    name: { fontSize: 16, fontWeight: "700", color: c.text, marginBottom: 4 },
+    desc: {
+      fontSize: 13,
+      color: c.textSecondary,
+      lineHeight: 18,
+      marginBottom: 8,
+    },
+    price: {
+      fontSize: 18,
+      fontWeight: "800",
+      color: c.accentStrong,
+      marginBottom: 8,
+    },
 
-  deleteBtn: { padding: 8, borderRadius: 10 },
-  deleteBtnPressed: { backgroundColor: c.surfaceMuted, transform: [{ scale: 0.9 }] },
+    badgesRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      flexWrap: "wrap",
+    },
+    catBadge: {
+      fontSize: 11,
+      fontWeight: "600",
+      color: c.textBody,
+      backgroundColor: c.surfaceMuted,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+    },
+    stockBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+    },
+    inStock: { backgroundColor: c.successSoft },
+    outOfStock: { backgroundColor: c.dangerSoft },
+    stockPressed: { opacity: 0.6 },
+    stockText: { fontSize: 11, fontWeight: "700" },
+    inStockText: { color: c.successStrong },
+    outOfStockText: { color: c.dangerStrong },
 
-  emptyContainer: {
-    alignItems: "center",
-    marginTop: 80,
-    padding: 24,
-    zIndex: 1,
-  },
-  emptyIconBox: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: c.infoSoft,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: c.text,
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  emptyText: {
-    fontSize: 15,
-    color: c.textSecondary,
-    textAlign: "center",
-    maxWidth: 260,
-    lineHeight: 22,
-  },
+    deleteBtn: { padding: 8, borderRadius: 10 },
+    deleteBtnPressed: {
+      backgroundColor: c.surfaceMuted,
+      transform: [{ scale: 0.9 }],
+    },
 
-  floatingNavWrapper: {
-    position: "absolute",
-    bottom: 32,
-    left: 24,
-    right: 24,
-    zIndex: 10,
-    alignItems: "center",
-  },
-  floatingNav: {
-    flexDirection: "row",
-    backgroundColor: c.surface,
-    borderRadius: 32,
-    padding: 8,
-    shadowColor: c.shadow,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    elevation: 12,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-  },
-  navItemActive: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingVertical: 12,
-    borderRadius: 24,
-  },
-  navItemInactive: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingVertical: 12,
-    borderRadius: 24,
-  },
-  navTextActive: { fontSize: 12, fontWeight: "700", color: c.accent },
-  navTextInactive: { fontSize: 12, fontWeight: "600", color: c.textMuted },
-});
+    emptyContainer: {
+      alignItems: "center",
+      marginTop: 80,
+      padding: 24,
+      zIndex: 1,
+    },
+    emptyIconBox: {
+      width: 88,
+      height: 88,
+      borderRadius: 44,
+      backgroundColor: c.infoSoft,
+      justifyContent: "center",
+      alignItems: "center",
+      marginBottom: 20,
+    },
+    emptyTitle: {
+      fontSize: 20,
+      fontWeight: "800",
+      color: c.text,
+      marginBottom: 8,
+      textAlign: "center",
+    },
+    emptyText: {
+      fontSize: 15,
+      color: c.textSecondary,
+      textAlign: "center",
+      maxWidth: 260,
+      lineHeight: 22,
+    },
+
+    floatingNavWrapper: {
+      position: "absolute",
+      left: 16,
+      right: 16,
+      zIndex: 10,
+      alignItems: "center",
+    },
+    // Ocupa todo el ancho disponible (hasta 480) para que entren los 5 botones
+    floatingNav: {
+      width: "100%",
+      maxWidth: 480,
+      flexDirection: "row",
+      backgroundColor: c.surface,
+      borderRadius: 32,
+      padding: 6,
+      shadowColor: c.shadow,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.12,
+      shadowRadius: 24,
+      elevation: 12,
+      borderWidth: 1,
+      borderColor: c.borderSoft,
+    },
+    navItemActive: {
+      flex: 1,
+      minWidth: 0,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
+      paddingVertical: 10,
+      borderRadius: 24,
+    },
+    navItemInactive: {
+      flex: 1,
+      minWidth: 0,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
+      paddingVertical: 10,
+      borderRadius: 24,
+    },
+    navTextActive: { fontSize: 11, fontWeight: "700", color: c.accent },
+    navTextInactive: { fontSize: 11, fontWeight: "600", color: c.textMuted },
+  });

@@ -1,9 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useNavigation, useRouter } from "expo-router";
+import { useFocusEffect, useNavigation } from "expo-router";
+import { useSafeRouter } from "../../hooks/use-safe-router";
 import { useCallback, useLayoutEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -12,46 +12,22 @@ import {
 } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../services/supabase";
+import {
+  ACTIVE_STATUSES,
+  formatPrice,
+  groupOrdersByDay,
+  Order,
+  ORDER_COLUMNS,
+  OrderStatus,
+  paymentLabel,
+  STATUS_CONFIG,
+} from "../../constants/orders";
 import { ThemeColors } from "../../constants/theme";
+import { useOrdersRealtime } from "../../hooks/use-orders-realtime";
 import { useThemedStyles } from "../../hooks/use-themed-styles";
+import { showAlert } from "../../components/app-alert";
 
-type OrderStatus = "pending" | "preparing" | "ready";
-
-type Order = {
-  id: string;
-  id_pedido: string;
-  user_id: string;
-  items: any[];
-  total: number;
-  metodo_pago: "mp" | "efectivo";
-  estado: OrderStatus;
-  created_at: string;
-};
-
-// Colores del tema (ver constants/theme.ts)
-const STATUS_CONFIG = {
-  pending: {
-    label: "Pendiente",
-    color: "warning" as const,
-    bg: "warningSoft" as const,
-    icon: "time-outline" as const,
-  },
-  preparing: {
-    label: "En preparación",
-    color: "info" as const,
-    bg: "infoSoft" as const,
-    icon: "flame-outline" as const,
-  },
-  ready: {
-    label: "¡Listo!",
-    color: "success" as const,
-    bg: "successSoft" as const,
-    icon: "checkmark-circle-outline" as const,
-  },
-};
-
-const formatPrice = (p: number) => "$" + p.toLocaleString("es-AR");
-
+// Primero lo que hay que preparar, después lo que espera ser retirado
 const sortOrders = (orders: Order[]) => {
   return [...orders].sort((a, b) => {
     const getPriority = (status: OrderStatus) => (status === "ready" ? 2 : 1);
@@ -66,37 +42,14 @@ const sortOrders = (orders: Order[]) => {
   });
 };
 
-const groupOrdersByDay = (orders: Order[]) => {
-  const groups: Record<string, Order[]> = {};
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  orders.forEach((order) => {
-    const orderDate = new Date(order.created_at);
-    orderDate.setHours(0, 0, 0, 0);
-
-    const diffTime = today.getTime() - orderDate.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-    let key = "";
-    if (diffDays === 0) key = "Hoy";
-    else if (diffDays === 1) key = "Ayer";
-    else key = `Hace ${diffDays} días`;
-
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(order);
-  });
-
-  return groups;
-};
-
 export default function AdminPedidosScreen() {
   const { colors: c, styles } = useThemedStyles(createStyles);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const router = useRouter();
+  const router = useSafeRouter();
 
   const { role } = useAuth();
   const navigation = useNavigation();
@@ -105,26 +58,15 @@ export default function AdminPedidosScreen() {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchOrders();
-    }, []),
-  );
-
+  // Solo los pedidos en curso; entregados y cancelados van al historial
   const fetchOrders = async () => {
     try {
-      const desde = new Date();
-      desde.setHours(0, 0, 0, 0);
-      desde.setDate(desde.getDate() - 1); // ayer 00:00
-
       const { data, error } = await supabase
         .from("pedidos")
-        .select(
-          "id, id_pedido, user_id, items, total, metodo_pago, estado, created_at",
-        )
-        .gte("created_at", desde.toISOString())
+        .select(ORDER_COLUMNS)
+        .in("estado", ACTIVE_STATUSES)
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(100);
 
       if (error) throw error;
       setOrders((data ?? []) as Order[]);
@@ -138,26 +80,50 @@ export default function AdminPedidosScreen() {
       );
 
       if (err?.code === "57014" || err?.message?.includes("timeout")) {
-        Alert.alert(
+        showAlert(
           "Tardó demasiado",
           "No pudimos cargar los pedidos. ¿Querés intentar de nuevo?",
-          [{ text: "Reintentar", onPress: fetchOrders }, { text: "Cancelar" }],
+          [{ text: "Cancelar", style: "cancel" }, { text: "Reintentar", onPress: fetchOrders }],
         );
       } else {
-        Alert.alert("Error", "No se pudieron cargar los pedidos");
+        showAlert("Error", "No se pudieron cargar los pedidos");
       }
     } finally {
       setLoading(false);
     }
   };
 
+  // Se recarga cada vez que se entra a la pantalla. fetchOrders queda fuera
+  // de las dependencias a propósito: se recrea en cada render y recargaría
+  // en bucle.
+  useFocusEffect(
+    useCallback(() => {
+      fetchOrders();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []),
+  );
+
+  // Pedidos nuevos o cambios (desde otro celular o el asistente) al instante
+  useOrdersRealtime(fetchOrders);
+
+  // Deslizar hacia abajo para recargar
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchOrders();
+    setRefreshing(false);
+  };
+
   const updateStatus = async (orderId: string, newStatus: OrderStatus) => {
     if (updatingId) return;
 
     setUpdatingId(orderId);
+    const previous = orders;
 
+    // Entregados y cancelados salen de la lista
     setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, estado: newStatus } : o)),
+      ACTIVE_STATUSES.includes(newStatus)
+        ? prev.map((o) => (o.id === orderId ? { ...o, estado: newStatus } : o))
+        : prev.filter((o) => o.id !== orderId),
     );
 
     try {
@@ -169,9 +135,26 @@ export default function AdminPedidosScreen() {
       if (error) throw error;
     } catch (err) {
       console.error(err);
+      setOrders(previous);
+      showAlert("Error", "No se pudo actualizar el pedido");
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  const confirmCancel = (order: Order) => {
+    showAlert(
+      "Cancelar pedido",
+      `¿Seguro que querés cancelar ${order.id_pedido}? El alumno lo va a ver como cancelado.`,
+      [
+        { text: "No", style: "cancel" },
+        {
+          text: "Cancelar pedido",
+          style: "destructive",
+          onPress: () => updateStatus(order.id, "cancelled"),
+        },
+      ],
+    );
   };
 
   if (loading) {
@@ -182,11 +165,10 @@ export default function AdminPedidosScreen() {
     );
   }
 
-  const sortedOrders = sortOrders(orders);
-  const grouped = groupOrdersByDay(sortedOrders);
-  const sections = Object.entries(grouped).map(([day, dayOrders]) => ({
-    title: day,
-    data: dayOrders,
+  // Vienen ordenados por fecha: se agrupa por día y se ordena dentro de cada día
+  const sections = groupOrdersByDay(orders).map((s) => ({
+    ...s,
+    data: sortOrders(s.data),
   }));
 
   return (
@@ -194,10 +176,20 @@ export default function AdminPedidosScreen() {
       <View style={styles.bgTop} />
       <View style={styles.bgBottom} />
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={26} color={c.text} />
-        </Pressable>
+        <View style={styles.headerRow}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={26} color={c.text} />
+          </Pressable>
+          <Pressable
+            onPress={() => router.push("/(admin)/historial")}
+            style={({ pressed }) => [styles.historyBtn, pressed && styles.pressed]}
+          >
+            <Ionicons name="stats-chart-outline" size={18} color={c.accentStrong} />
+            <Text style={styles.historyText}>Historial y ventas</Text>
+          </Pressable>
+        </View>
         <Text style={styles.title}>Gestión de Pedidos</Text>
+        <Text style={styles.subtitle}>Se actualiza solo cuando entra un pedido</Text>
       </View>
 
       {sections.length === 0 ? (
@@ -214,13 +206,15 @@ export default function AdminPedidosScreen() {
         <FlatList
           data={sections}
           keyExtractor={(item) => item.title}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           renderItem={({ item: section }) => (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>{section.title}</Text>
               {section.data.map((order) => {
-                const config = STATUS_CONFIG[order.estado];
+                const config = STATUS_CONFIG[order.estado] ?? STATUS_CONFIG.pending;
                 const isUpdating = updatingId === order.id;
 
                 return (
@@ -228,9 +222,7 @@ export default function AdminPedidosScreen() {
                     <View style={styles.cardHeader}>
                       <Text style={styles.orderId}>{order.id_pedido}</Text>
                       <Text style={styles.paymentMethod}>
-                        {order.metodo_pago === "mp"
-                          ? "MercadoPago"
-                          : "Efectivo"}
+                        {paymentLabel(order.metodo_pago)}
                       </Text>
                     </View>
 
@@ -253,16 +245,11 @@ export default function AdminPedidosScreen() {
                     </View>
 
                     <View style={styles.itemsPreview}>
-                      {order.items.slice(0, 2).map((item, i) => (
+                      {order.items.map((item, i) => (
                         <Text key={i} style={styles.itemText}>
-                          • {item.nombre} x{item.cantidad}
+                          • {item.nombre}{item.cantidad > 1 && ` x${item.cantidad}`}
                         </Text>
                       ))}
-                      {order.items.length > 2 && (
-                        <Text style={styles.moreItems}>
-                          +{order.items.length - 2} más
-                        </Text>
-                      )}
                     </View>
 
                     <View style={styles.cardFooter}>
@@ -271,48 +258,53 @@ export default function AdminPedidosScreen() {
                       </Text>
 
                       <View style={styles.actions}>
-                        {order.estado === "pending" && (
-                          <Pressable
-                            style={[
-                              styles.actionBtn,
-                              styles.btnPreparing,
-                              isUpdating && styles.disabledBtn,
-                            ]}
-                            onPress={() => updateStatus(order.id, "preparing")}
-                            disabled={isUpdating}
-                          >
-                            {isUpdating ? (
-                              <ActivityIndicator size="small" color={c.info} />
-                            ) : (
-                              <Ionicons
-                                name="flame-outline"
-                                size={18}
-                                color={c.info}
-                              />
-                            )}
-                          </Pressable>
-                        )}
+                        {isUpdating ? (
+                          <ActivityIndicator size="small" color={c.accent} />
+                        ) : (
+                          <>
+                            <Pressable
+                              style={[styles.actionBtn, styles.btnCancel]}
+                              onPress={() => confirmCancel(order)}
+                              accessibilityLabel="Cancelar pedido"
+                            >
+                              <Ionicons name="close" size={18} color={c.danger} />
+                            </Pressable>
 
-                        {order.estado === "preparing" && (
-                          <Pressable
-                            style={[
-                              styles.actionBtn,
-                              styles.btnReady,
-                              isUpdating && styles.disabledBtn,
-                            ]}
-                            onPress={() => updateStatus(order.id, "ready")}
-                            disabled={isUpdating}
-                          >
-                            {isUpdating ? (
-                              <ActivityIndicator size="small" color={c.success} />
-                            ) : (
-                              <Ionicons
-                                name="checkmark-circle-outline"
-                                size={18}
-                                color={c.success}
-                              />
+                            {order.estado === "pending" && (
+                              <Pressable
+                                style={[styles.actionBtn, styles.btnPreparing]}
+                                onPress={() => updateStatus(order.id, "preparing")}
+                                accessibilityLabel="Pasar a en preparación"
+                              >
+                                <Ionicons name="flame-outline" size={18} color={c.info} />
+                              </Pressable>
                             )}
-                          </Pressable>
+
+                            {order.estado === "preparing" && (
+                              <Pressable
+                                style={[styles.actionBtn, styles.btnReady]}
+                                onPress={() => updateStatus(order.id, "ready")}
+                                accessibilityLabel="Marcar como listo"
+                              >
+                                <Ionicons
+                                  name="checkmark-circle-outline"
+                                  size={18}
+                                  color={c.success}
+                                />
+                              </Pressable>
+                            )}
+
+                            {order.estado === "ready" && (
+                              <Pressable
+                                style={[styles.actionBtn, styles.btnDelivered]}
+                                onPress={() => updateStatus(order.id, "delivered")}
+                                accessibilityLabel="Marcar como entregado"
+                              >
+                                <Ionicons name="bag-check-outline" size={18} color={c.text} />
+                                <Text style={styles.deliveredText}>Entregado</Text>
+                              </Pressable>
+                            )}
+                          </>
                         )}
                       </View>
                     </View>
@@ -328,7 +320,7 @@ export default function AdminPedidosScreen() {
           {/* Menú: Inactivo (Gris Outline) */}
           <Pressable
             style={styles.navItemInactive}
-            onPress={() => router.push("/(admin)/menu")}
+            onPress={() => router.dismissTo("/(admin)/menu")}
           >
             <Ionicons name="restaurant-outline" size={24} color={c.textMuted} />
             <Text style={styles.navTextInactive}>Menú</Text>
@@ -336,7 +328,7 @@ export default function AdminPedidosScreen() {
 
           <Pressable
             style={styles.navItemInactive}
-            onPress={() => router.push("/agregar")}
+            onPress={() => router.replace("/agregar")}
           >
             <Ionicons name="add-circle-outline" size={24} color={c.textMuted} />
             <Text style={styles.navTextInactive}>Agregar</Text>
@@ -350,7 +342,7 @@ export default function AdminPedidosScreen() {
           {role === "superadmin" && (
             <Pressable
               style={styles.navItemInactive}
-              onPress={() => router.push("/(admin)/usuarios")}
+              onPress={() => router.replace("/(admin)/usuarios")}
             >
               <Ionicons name="people-outline" size={24} color={c.textMuted} />
               <Text style={styles.navTextInactive}>Usuarios</Text>
@@ -358,7 +350,7 @@ export default function AdminPedidosScreen() {
           )}
           <Pressable
             style={styles.navItemInactive}
-            onPress={() => router.push("/(admin)/perfil")}
+            onPress={() => router.replace("/(admin)/perfil")}
           >
             <Ionicons name="person-circle-outline" size={24} color={c.textMuted} />
             <Text style={styles.navTextInactive}>Perfil</Text>
@@ -371,6 +363,7 @@ export default function AdminPedidosScreen() {
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1 },
+  pressed: { opacity: 0.7 },
 
   // ✅ FONDO DIFUMINADO IDÉNTICO AL MENÚ
   bgTop: {
@@ -405,6 +398,12 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     paddingBottom: 16,
     zIndex: 1,
   },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
   backBtn: {
     width: 44,
     height: 44,
@@ -412,10 +411,19 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: c.surface,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
     borderWidth: 1,
     borderColor: c.border,
   },
+  historyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: c.accentSoft,
+  },
+  historyText: { fontSize: 14, fontWeight: "700", color: c.accentStrong },
   title: {
     fontSize: 28,
     fontWeight: "800",
@@ -432,6 +440,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     color: c.text,
     marginBottom: 12,
     marginLeft: 4,
+    textTransform: "capitalize",
   },
 
   card: {
@@ -468,7 +477,6 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
 
   itemsPreview: { marginBottom: 14 },
   itemText: { fontSize: 14, color: c.textBody, marginBottom: 3 },
-  moreItems: { fontSize: 13, color: c.textMuted, fontStyle: "italic" },
 
   cardFooter: {
     flexDirection: "row",
@@ -480,9 +488,9 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   },
   total: { fontSize: 18, fontWeight: "800", color: c.success },
 
-  actions: { flexDirection: "row", gap: 8 },
+  actions: { flexDirection: "row", alignItems: "center", gap: 8 },
   actionBtn: {
-    width: 40,
+    minWidth: 40,
     height: 40,
     borderRadius: 14,
     justifyContent: "center",
@@ -490,9 +498,16 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: c.surfaceAlt,
     borderWidth: 1,
   },
-  disabledBtn: { opacity: 0.5, backgroundColor: c.surfaceMuted },
   btnPreparing: { borderColor: c.infoBorder },
   btnReady: { borderColor: c.successBorder },
+  btnCancel: { borderColor: c.dangerBorder },
+  btnDelivered: {
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 12,
+    borderColor: c.border,
+  },
+  deliveredText: { fontSize: 13, fontWeight: "700", color: c.text },
 
   empty: { flex: 1, justifyContent: "center", alignItems: "center", zIndex: 1 },
   emptyIconBox: {

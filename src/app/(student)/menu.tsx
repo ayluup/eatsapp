@@ -1,6 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import { useSafeRouter } from "../../hooks/use-safe-router";
+import { useCallback, useState } from "react";
+import { AssistantButton } from "../../components/assistant-button";
+import { ThemeToggleButton } from "../../components/theme-toggle-button";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../hooks/useCart";
 import { supabase } from "../../services/supabase";
@@ -11,6 +14,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { ThemeColors } from "../../constants/theme";
@@ -29,40 +33,57 @@ export type MenuItem = {
 const formatPrice = (p: number) => "$" + p.toLocaleString("es-AR");
 const CATEGORIES = ["Todos", "Comida", "Gaseosas", "Bebidas"];
 
+// Para buscar sin importar mayúsculas ni tildes ("cafe" encuentra "Café")
+const normalize = (t: string) =>
+  t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+// Trae los productos (null si falló)
+async function fetchMenuData(): Promise<MenuItem[] | null> {
+  try {
+    const { data, error } = await supabase
+      .from("menus")
+      .select("*")
+      .order("nombre", { ascending: true });
+    if (error) throw error;
+    return (data || []).map((item) => ({
+      ...item,
+      categoria: item.categoria || "Comida",
+    }));
+  } catch (err: any) {
+    console.error("Error cargando menú:", err.message);
+    return null;
+  }
+}
+
 export default function StudentMenuScreen() {
   const { colors: c, styles } = useThemedStyles(createStyles);
   const [menu, setMenu] = useState<MenuItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("Todos");
+  const [search, setSearch] = useState("");
 
   const { addToCart, count: cartCount } = useCart();
   const { signOut } = useAuth();
   const [showToast, setShowToast] = useState(false);
   const [lastAddedItem, setLastAddedItem] = useState("");
-  const router = useRouter();
+  const router = useSafeRouter();
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetchMenu();
-  }, []);
-
-  const fetchMenu = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("menus")
-        .select("*")
-        .order("nombre", { ascending: true });
-      if (error) throw error;
-      const safeData = (data || []).map((item) => ({
-        ...item,
-        categoria: item.categoria || "Comida",
-      }));
-      setMenu(safeData);
-    } catch (err: any) {
-      console.error("Error cargando menú:", err.message);
-    } finally {
-      setLoading(false);
-    }
+  // Deslizar hacia abajo para recargar
+  const onRefresh = async () => {
+    setRefreshing(true);
+    const data = await fetchMenuData();
+    if (data) setMenu(data);
+    setRefreshing(false);
   };
+
+  // Al volver a la pantalla se recarga (ej. cambió el stock)
+  useFocusEffect(
+    useCallback(() => {
+      fetchMenuData().then((data) => {
+        if (data) setMenu(data);
+      });
+    }, []),
+  );
 
   const handleAddToCart = (item: MenuItem) => {
     if (!item.disponible) return;
@@ -77,10 +98,14 @@ export default function StudentMenuScreen() {
     setTimeout(() => setShowToast(false), 1500);
   };
 
-  const filteredMenu =
-    selectedCategory === "Todos"
-      ? menu
-      : menu.filter((item) => item.categoria === selectedCategory);
+  const query = normalize(search.trim());
+  const filteredMenu = menu.filter(
+    (item) =>
+      (selectedCategory === "Todos" || item.categoria === selectedCategory) &&
+      (!query ||
+        normalize(item.nombre).includes(query) ||
+        normalize(item.descripcion ?? "").includes(query)),
+  );
 
   return (
     <View style={styles.container}>
@@ -96,17 +121,39 @@ export default function StudentMenuScreen() {
           </Text>
         </View>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.logoutBtn,
-            pressed && styles.logoutBtnPressed,
-          ]}
-          onPress={async () => {
-            await signOut();
-          }}
-        >
-          <Ionicons name="log-out-outline" size={22} color={c.danger} />
-        </Pressable>
+        <View style={styles.headerActions}>
+          <ThemeToggleButton />
+          <AssistantButton href="/(student)/asistente" />
+          <Pressable
+            style={({ pressed }) => [
+              styles.logoutBtn,
+              pressed && styles.logoutBtnPressed,
+            ]}
+            onPress={async () => {
+              await signOut();
+            }}
+          >
+            <Ionicons name="log-out-outline" size={22} color={c.danger} />
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.searchBox}>
+        <Ionicons name="search" size={18} color={c.textMuted} />
+        <TextInput
+          style={styles.searchInput}
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Buscar en el menú…"
+          placeholderTextColor={c.textMuted}
+          returnKeyType="search"
+          autoCorrect={false}
+        />
+        {search.length > 0 && (
+          <Pressable onPress={() => setSearch("")} hitSlop={10}>
+            <Ionicons name="close-circle" size={18} color={c.textMuted} />
+          </Pressable>
+        )}
       </View>
 
       <View style={styles.categoriesRow}>
@@ -134,6 +181,8 @@ export default function StudentMenuScreen() {
       <FlatList
         data={filteredMenu}
         keyExtractor={(item) => item.id.toString()}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => {
@@ -203,9 +252,11 @@ export default function StudentMenuScreen() {
           <View style={styles.emptyContainer}>
             <Ionicons name="fast-food-outline" size={48} color={c.textFaint} />
             <Text style={styles.emptyTitle}>
-              {selectedCategory === "Todos"
-                ? "No hay productos disponibles"
-                : `No hay productos en ${selectedCategory}`}
+              {query
+                ? `No encontramos "${search.trim()}"`
+                : selectedCategory === "Todos"
+                  ? "No hay productos disponibles"
+                  : `No hay productos en ${selectedCategory}`}
             </Text>
             <Text style={styles.emptyText}>
               {selectedCategory === "Todos"
@@ -220,7 +271,7 @@ export default function StudentMenuScreen() {
         <View style={styles.toastContainer}>
           <View style={styles.toast}>
             <Ionicons name="checkmark-circle" size={20} color={c.success} />
-            <Text style={styles.toastText}>"{lastAddedItem}" agregado</Text>
+            <Text style={styles.toastText}>&quot;{lastAddedItem}&quot; agregado</Text>
           </View>
         </View>
       )}
@@ -332,11 +383,27 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     padding: 10,
     borderRadius: 12,
     backgroundColor: c.dangerSoft,
-    marginLeft: 12,
     borderWidth: 1,
     borderColor: c.dangerBorder,
   },
+  headerActions: { flexDirection: "row", gap: 10, marginLeft: 12 },
   logoutBtnPressed: { opacity: 0.7, transform: [{ scale: 0.95 }] },
+
+  searchBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginHorizontal: 24,
+    marginTop: 4,
+    paddingHorizontal: 14,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.border,
+    zIndex: 1,
+  },
+  searchInput: { flex: 1, fontSize: 15, color: c.text, paddingVertical: 0 },
 
   categoriesRow: {
     flexDirection: "row",

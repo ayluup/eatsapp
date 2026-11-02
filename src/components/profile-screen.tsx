@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { File as DeviceFile } from "expo-file-system";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
-import { useRouter } from "expo-router";
+import { useSafeRouter } from "../hooks/use-safe-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -98,7 +98,7 @@ export function ProfileScreen() {
   const { colors: c, styles } = useThemedStyles(createStyles);
   const { user, role, hasPassword, changePassword, signOut } = useAuth();
   const { preference, setPreference } = useAppTheme();
-  const router = useRouter();
+  const router = useSafeRouter();
   const insets = useSafeAreaInsets();
   const userId = user?.id;
 

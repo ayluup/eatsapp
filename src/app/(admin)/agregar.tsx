@@ -1,13 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { useNavigation, useRouter } from "expo-router";
+import { useNavigation } from "expo-router";
+import { useSafeRouter } from "../../hooks/use-safe-router";
 import { useLayoutEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
+import { saveProductImage } from "../../services/product-images";
 import { supabase } from "../../services/supabase";
 
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   Pressable,
   Image as RNImage,
@@ -20,6 +21,7 @@ import {
 } from "react-native";
 import { ThemeColors } from "../../constants/theme";
 import { useThemedStyles } from "../../hooks/use-themed-styles";
+import { showAlert } from "../../components/app-alert";
 
 export default function AdminAgregarScreen() {
   const { colors: c, styles } = useThemedStyles(createStyles);
@@ -32,7 +34,7 @@ export default function AdminAgregarScreen() {
   const [loading, setLoading] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
 
-  const router = useRouter();
+  const router = useSafeRouter();
 
   const { role } = useAuth();
   const navigation = useNavigation();
@@ -71,7 +73,7 @@ export default function AdminAgregarScreen() {
 
   const handleGuardar = async () => {
     if (!nombre.trim() || !precio.trim()) {
-      return Alert.alert(
+      return showAlert(
         "Campos requeridos",
         "Por favor completá el nombre y el precio.",
       );
@@ -79,7 +81,7 @@ export default function AdminAgregarScreen() {
 
     const precioNum = parseFloat(precio.replace(/\./g, "").replace(",", "."));
     if (isNaN(precioNum) || precioNum <= 0) {
-      return Alert.alert("Precio inválido", "Ingresá un precio mayor a 0.");
+      return showAlert("Precio inválido", "Ingresá un precio mayor a 0.");
     }
 
     setLoading(true);
@@ -90,19 +92,19 @@ export default function AdminAgregarScreen() {
         precio: precioNum,
         categoria,
         disponible,
-        imagen_url: base64Image || null,
+        imagen_url: await saveProductImage(base64Image),
       });
 
       if (error) throw error;
 
-      Alert.alert(
-        "✅ Producto Guardado",
+      showAlert(
+        "Producto guardado",
         `"${nombre}" fue agregado al menú correctamente.`,
       );
       router.back();
     } catch (err: any) {
       console.error("Error al guardar:", err);
-      Alert.alert("Error", err.message || "No se pudo guardar el producto");
+      showAlert("Error", err.message || "No se pudo guardar el producto");
     } finally {
       setLoading(false);
     }
@@ -346,7 +348,7 @@ export default function AdminAgregarScreen() {
           {/* Menú: Inactivo (Gris Outline) */}
           <Pressable
             style={styles.navItemInactive}
-            onPress={() => router.push("/(admin)/menu")}
+            onPress={() => router.dismissTo("/(admin)/menu")}
           >
             <Ionicons name="restaurant-outline" size={24} color={c.textMuted} />
             <Text style={styles.navTextInactive}>Menú</Text>
@@ -361,7 +363,7 @@ export default function AdminAgregarScreen() {
           {/* Pedidos: Inactivo (Gris Outline) */}
           <Pressable
             style={styles.navItemInactive}
-            onPress={() => router.push("/(admin)/pedidos")}
+            onPress={() => router.replace("/(admin)/pedidos")}
           >
             <Ionicons name="list-outline" size={24} color={c.textMuted} />
             <Text style={styles.navTextInactive}>Pedidos</Text>
@@ -370,7 +372,7 @@ export default function AdminAgregarScreen() {
           {role === "superadmin" && (
             <Pressable
               style={styles.navItemInactive}
-              onPress={() => router.push("/(admin)/usuarios")}
+              onPress={() => router.replace("/(admin)/usuarios")}
             >
               <Ionicons name="people-outline" size={24} color={c.textMuted} />
               <Text style={styles.navTextInactive}>Usuarios</Text>
@@ -378,7 +380,7 @@ export default function AdminAgregarScreen() {
           )}
           <Pressable
             style={styles.navItemInactive}
-            onPress={() => router.push("/(admin)/perfil")}
+            onPress={() => router.replace("/(admin)/perfil")}
           >
             <Ionicons name="person-circle-outline" size={24} color={c.textMuted} />
             <Text style={styles.navTextInactive}>Perfil</Text>

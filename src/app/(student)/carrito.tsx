@@ -1,9 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useSafeRouter } from "../../hooks/use-safe-router";
+import { useRef, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { useCart } from "../../hooks/useCart";
-import { supabase } from "../../services/supabase";
+import { useCart, writeCart } from "../../hooks/useCart";
+import { createOrder } from "../../services/orders";
 
 import {
   ActivityIndicator,
@@ -11,49 +11,68 @@ import {
   Image,
   Modal,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { ThemeColors } from "../../constants/theme";
 import { useThemedStyles } from "../../hooks/use-themed-styles";
+import { showAlert } from "../../components/app-alert";
 
 const formatPrice = (price: number) => "$" + price.toLocaleString("es-AR");
 
 export default function StudentCartScreen() {
   const { colors: c, styles } = useThemedStyles(createStyles);
-  const { items, loading, updateQuantity, removeItem, total, clearCart } =
-    useCart();
+  const { items, loading, updateQuantity, removeItem, total, reload } = useCart();
+  const [refreshing, setRefreshing] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [sendingOrder, setSendingOrder] = useState(false);
-  const router = useRouter();
+  const router = useSafeRouter();
   const { user } = useAuth();
 
+  // El state tarda un render en actualizarse: con dos toques rápidos los dos
+  // veían sendingOrder = false y se creaban pedidos repetidos. El ref no.
+  const sendingRef = useRef(false);
+
+  // Antes se vaciaba el carrito con el modal abierto: la pantalla pasaba al
+  // estado "vacío", el Modal se desmontaba visible en medio del cambio de
+  // pantalla y en Android la app se cerraba. Ahora primero se cierra el
+  // modal, después se cambia de pantalla y recién ahí se vacía el carrito.
+  const goToOrders = () => {
+    setShowPaymentModal(false);
+    setTimeout(() => {
+      router.replace("/(student)/mis-pedidos");
+      writeCart([]).catch(console.warn);
+    }, 350);
+  };
+
+  // Deslizar hacia abajo para recargar
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await reload();
+    setRefreshing(false);
+  };
+
   const handleConfirmOrder = async (method: "mp" | "efectivo") => {
+    if (sendingRef.current) return;
+    sendingRef.current = true;
     setSendingOrder(true);
     try {
-      const orderId = `PED-${Date.now().toString().slice(-6)}`;
-
-      const { error } = await supabase.from("pedidos").insert({
-        id_pedido: orderId,
-        user_id: user?.id,
-        items: items,
-        total: total,
-        metodo_pago: method,
-        estado: "pending",
-        created_at: new Date().toISOString(),
-      });
-
-      if (error) throw error;
-
-      clearCart();
-      setShowPaymentModal(false);
-      router.replace("/(student)/mis-pedidos");
-    } catch (err) {
-      console.error("Error al confirmar pedido:", err);
-      alert("Hubo un error al enviar tu pedido. Intentá nuevamente.");
-    } finally {
+      await createOrder(items, method, user?.id);
+      goToOrders();
+    } catch (err: any) {
+      console.warn("Error al confirmar pedido:", err);
+      // El servidor ya tiene este pedido (doble toque o reintento)
+      if (err?.message?.includes("Ya recibimos este pedido")) {
+        goToOrders();
+        return;
+      }
+      // Solo si falló se habilita de nuevo: si salió bien la pantalla se va
+      // y no tiene que poder mandarse otra vez mientras tanto.
+      sendingRef.current = false;
       setSendingOrder(false);
+      showAlert("No se pudo enviar", "Hubo un error al enviar tu pedido. Intentá nuevamente.");
     }
   };
 
@@ -92,7 +111,7 @@ export default function StudentCartScreen() {
               styles.exploreBtn,
               { opacity: pressed ? 0.9 : 1 },
             ]}
-            onPress={() => router.push("/(student)/menu")}
+            onPress={() => router.dismissTo("/(student)/menu")}
           >
             <Ionicons
               name="restaurant-outline"
@@ -126,6 +145,14 @@ export default function StudentCartScreen() {
       <FlatList
         data={items}
         keyExtractor={(item) => item.id.toString()}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[c.accent]}
+            tintColor={c.accent}
+          />
+        }
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => {
@@ -219,8 +246,9 @@ export default function StudentCartScreen() {
             </Text>
 
             <Pressable
-              style={styles.paymentOption}
+              style={[styles.paymentOption, sendingOrder && styles.paymentOptionDisabled]}
               onPress={() => handleConfirmOrder("mp")}
+              disabled={sendingOrder}
             >
               <View style={[styles.payIcon, { backgroundColor: c.infoSoft }]}>
                 <Ionicons name="card-outline" size={28} color={c.info} />
@@ -233,8 +261,9 @@ export default function StudentCartScreen() {
             </Pressable>
 
             <Pressable
-              style={styles.paymentOption}
+              style={[styles.paymentOption, sendingOrder && styles.paymentOptionDisabled]}
               onPress={() => handleConfirmOrder("efectivo")}
+              disabled={sendingOrder}
             >
               <View style={[styles.payIcon, { backgroundColor: c.warningSoft }]}>
                 <Ionicons name="cash-outline" size={28} color={c.warningStrong} />
@@ -248,9 +277,17 @@ export default function StudentCartScreen() {
               <Ionicons name="chevron-forward" size={20} color={c.textFaint} />
             </Pressable>
 
+            {sendingOrder && (
+              <View style={styles.sendingRow}>
+                <ActivityIndicator color={c.accent} />
+                <Text style={styles.sendingText}>Enviando tu pedido...</Text>
+              </View>
+            )}
+
             <Pressable
               style={styles.cancelModalBtn}
               onPress={() => setShowPaymentModal(false)}
+              disabled={sendingOrder}
             >
               <Text style={styles.cancelModalText}>Cancelar</Text>
             </Pressable>
@@ -445,6 +482,15 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   payDesc: { fontSize: 13, color: c.textSecondary, marginTop: 2 },
   cancelModalBtn: { padding: 16, alignItems: "center", marginTop: 8 },
   cancelModalText: { fontSize: 16, fontWeight: "600", color: c.danger },
+  paymentOptionDisabled: { opacity: 0.5 },
+  sendingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    marginBottom: 8,
+  },
+  sendingText: { fontSize: 15, color: c.textSecondary },
 
   // ESTADO VACÍO
   emptyBackBtn: {
