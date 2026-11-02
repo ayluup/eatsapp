@@ -27,6 +27,7 @@ export type Menu = {
   descripcion: string | null;
   precio: number;
   disponible: boolean;
+  stock: number | null;
   imagen_url: string | null;
   categoria: string;
   created_at: string;
@@ -84,6 +85,13 @@ export default function AdminMenuScreen() {
   );
 
   const toggleStock = async (item: Menu) => {
+    if (item.stock === 0) {
+      showAlert(
+        "Sin unidades",
+        `Editá "${item.nombre}" y cargá cuántas unidades hay para volver a ponerlo en stock.`,
+      );
+      return;
+    }
     const disponible = !item.disponible;
     setMenus((prev) =>
       prev.map((m) => (m.id === item.id ? { ...m, disponible } : m)),
@@ -282,7 +290,11 @@ export default function AdminMenuScreen() {
                           : styles.outOfStockText,
                       ]}
                     >
-                      {item.disponible ? "En Stock" : "Agotado"}
+                      {item.disponible
+                        ? item.stock == null
+                          ? "En Stock"
+                          : `${item.stock} u.`
+                        : "Agotado"}
                     </Text>
                     <Ionicons
                       name="swap-horizontal"

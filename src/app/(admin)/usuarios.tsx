@@ -94,6 +94,35 @@ export default function UsuariosScreen() {
     );
   };
 
+  const deleteStudent = async (target: Profile) => {
+    setUpdatingId(target.id);
+    const { error } = await supabase.rpc("eliminar_estudiante", {
+      p_user_id: target.id,
+    });
+    setUpdatingId(null);
+
+    if (error) {
+      showAlert("No se pudo eliminar", error.message);
+      return;
+    }
+    setUsers((prev) => prev.filter((u) => u.id !== target.id));
+  };
+
+  const confirmDelete = (target: Profile) => {
+    showAlert(
+      "Eliminar estudiante",
+      `Se va a borrar la cuenta de ${target.email}. Sus pedidos pendientes se cancelan y el historial de ventas se conserva. No se puede deshacer.`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: () => deleteStudent(target),
+        },
+      ],
+    );
+  };
+
   const filtered = users.filter((u) =>
     (u.email ?? "").toLowerCase().includes(search.trim().toLowerCase()),
   );
@@ -126,17 +155,32 @@ export default function UsuariosScreen() {
           (updatingId === item.id ? (
             <ActivityIndicator color={c.accent} />
           ) : (
-            <Pressable
-              style={({ pressed }) => [
-                styles.roleBtn,
-                pressed && styles.roleBtnPressed,
-              ]}
-              onPress={() => confirmChangeRole(item)}
-            >
-              <Text style={styles.roleBtnText}>
-                {isAdmin ? "Quitar admin" : "Hacer admin"}
-              </Text>
-            </Pressable>
+            <>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.roleBtn,
+                  pressed && styles.roleBtnPressed,
+                ]}
+                onPress={() => confirmChangeRole(item)}
+              >
+                <Text style={styles.roleBtnText}>
+                  {isAdmin ? "Quitar admin" : "Hacer admin"}
+                </Text>
+              </Pressable>
+              {item.role === "student" && !isMe && (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.deleteBtn,
+                    pressed && styles.roleBtnPressed,
+                  ]}
+                  onPress={() => confirmDelete(item)}
+                  hitSlop={6}
+                  accessibilityLabel={`Eliminar a ${item.email}`}
+                >
+                  <Ionicons name="trash-outline" size={18} color={c.danger} />
+                </Pressable>
+              )}
+            </>
           ))}
       </View>
     );
@@ -311,6 +355,11 @@ const createStyles = (c: ThemeColors) =>
       backgroundColor: c.surfaceMuted,
     },
     roleBtnPressed: { opacity: 0.7 },
+    deleteBtn: {
+      padding: 8,
+      borderRadius: 12,
+      backgroundColor: c.dangerSoft,
+    },
     roleBtnText: { fontSize: 13, fontWeight: "700", color: c.textBody },
     empty: { alignItems: "center", marginTop: 48, gap: 12, padding: 24 },
     emptyText: { color: c.textSecondary, fontSize: 15, textAlign: "center" },

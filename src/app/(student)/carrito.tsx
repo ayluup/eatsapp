@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeRouter } from "../../hooks/use-safe-router";
 import { useRef, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { useCart, writeCart } from "../../hooks/useCart";
+import { canAddMore, useCart, writeCart } from "../../hooks/useCart";
 import { createOrder } from "../../services/orders";
 
 import {
@@ -192,10 +192,18 @@ export default function StudentCartScreen() {
                 <Text style={styles.qtyText}>{item.cantidad}</Text>
 
                 <Pressable
-                  style={styles.qtyBtn}
+                  style={[
+                    styles.qtyBtn,
+                    !canAddMore(item) && styles.qtyBtnDisabled,
+                  ]}
                   onPress={() => updateQuantity(item.id, 1)}
+                  disabled={!canAddMore(item)}
                 >
-                  <Ionicons name="add" size={18} color={c.text} />
+                  <Ionicons
+                    name="add"
+                    size={18}
+                    color={canAddMore(item) ? c.text : c.textFaint}
+                  />
                 </Pressable>
               </View>
 

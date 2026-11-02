@@ -131,6 +131,10 @@ const adminTools = [
         precio: { type: "NUMBER" },
         categoria: { type: "STRING", enum: ["Comida", "Gaseosas", "Bebidas"] },
         disponible: { type: "BOOLEAN", description: "Por defecto true" },
+        stock: {
+          type: "INTEGER",
+          description: "Unidades que hay. Cada pedido las descuenta y en 0 queda sin stock solo. Omitir = sin límite",
+        },
       },
       required: ["nombre", "precio", "categoria"],
     },
@@ -138,7 +142,7 @@ const adminTools = [
   {
     name: "editar_producto",
     description:
-      "Cambia datos de un producto existente: precio, nombre, descripción, categoría o si está disponible (stock).",
+      "Cambia datos de un producto existente: precio, nombre, descripción, categoría, si está disponible o las unidades en stock.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -148,6 +152,10 @@ const adminTools = [
         precio: { type: "NUMBER" },
         categoria: { type: "STRING", enum: ["Comida", "Gaseosas", "Bebidas"] },
         disponible: { type: "BOOLEAN" },
+        stock: {
+          type: "INTEGER",
+          description: "Unidades que hay ahora (reemplaza las anteriores). -1 = sin límite",
+        },
       },
       required: ["producto_id"],
     },
@@ -213,11 +221,11 @@ No sos un chatbot: sos un asistente que ACTÚA dentro de la app usando las herra
 - Respondé en español rioplatense, corto y claro, sin markdown (sin asteriscos ni títulos). Precios con formato $1.500.
 ${
   isAdmin
-    ? `- Ayudás a gestionar el kiosco: cargar y editar productos, marcar productos sin stock, avanzar pedidos y analizar ventas.
+    ? `- Ayudás a gestionar el kiosco: cargar y editar productos, cargar unidades en stock (cada pedido las descuenta solo), marcar productos sin stock, avanzar pedidos y analizar ventas.
 - Cuando analices ventas, sacá conclusiones útiles (qué conviene reponer, horarios con más demanda), no solo números.
 - Antes de crear un producto o cambiar un precio, confirmá los datos con el admin si no los dio todos.`
     : `- Ayudás al alumno a elegir qué comer según lo que pida (presupuesto, antojo, categoría), armar el carrito y hacer el pedido.
-- Solo se pueden pedir productos disponibles.
+- Solo se pueden pedir productos disponibles, y no más unidades de las que quedan.
 - Antes de usar confirmar_pedido mostrá el resumen (productos, total) y preguntá el método de pago (MercadoPago o efectivo). Solo confirmalo cuando el alumno diga que sí.`
 }
 
@@ -247,7 +255,7 @@ Deno.serve(async (req) => {
     supabase.from("profiles").select("role, nombre").eq("id", userData.user.id).single(),
     supabase
       .from("menus")
-      .select("id, nombre, precio, categoria, disponible")
+      .select("id, nombre, precio, categoria, disponible, stock")
       .order("categoria")
       .limit(150),
   ]);
@@ -259,12 +267,13 @@ Deno.serve(async (req) => {
     precio: number;
     categoria: string | null;
     disponible: boolean;
+    stock: number | null;
   };
   const menu = ((products ?? []) as Product[])
     .filter((p) => isAdmin || p.disponible)
     .map(
       (p) =>
-        `- id ${p.id}: ${p.nombre} | $${p.precio} | ${p.categoria || "Comida"}${p.disponible ? "" : " | SIN STOCK"}`,
+        `- id ${p.id}: ${p.nombre} | $${p.precio} | ${p.categoria || "Comida"}${p.disponible ? "" : " | SIN STOCK"}${p.disponible && p.stock != null ? ` | quedan ${p.stock}` : ""}`,
     )
     .join("\n");
 

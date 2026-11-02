@@ -6,6 +6,7 @@ import { AssistantButton } from "../../components/assistant-button";
 import { ThemeToggleButton } from "../../components/theme-toggle-button";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../hooks/useCart";
+import { showAlert } from "../../components/app-alert";
 import { supabase } from "../../services/supabase";
 
 import {
@@ -26,6 +27,7 @@ export type MenuItem = {
   descripcion: string | null;
   precio: number;
   disponible: boolean;
+  stock: number | null;
   imagen_url: string | null;
   categoria: string;
 };
@@ -87,12 +89,20 @@ export default function StudentMenuScreen() {
 
   const handleAddToCart = (item: MenuItem) => {
     if (!item.disponible) return;
-    addToCart({
+    const added = addToCart({
       id: item.id,
       nombre: item.nombre,
       precio: item.precio,
       imagen_url: item.imagen_url,
+      stock: item.stock,
     });
+    if (!added) {
+      showAlert(
+        "No hay más unidades",
+        `Ya tenés en el carrito todas las unidades de ${item.nombre} que quedan.`,
+      );
+      return;
+    }
     setLastAddedItem(item.nombre);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 1500);
@@ -232,7 +242,11 @@ export default function StudentMenuScreen() {
                     color={c.onAccent}
                   />
                   <Text style={styles.stockText}>
-                    {item.disponible ? "Disponible" : "Agotado"}
+                    {!item.disponible
+                      ? "Agotado"
+                      : item.stock != null && item.stock <= 5
+                        ? `Quedan ${item.stock}`
+                        : "Disponible"}
                   </Text>
                 </View>
               </View>

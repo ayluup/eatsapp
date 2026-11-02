@@ -9,7 +9,14 @@ export type CartItem = {
   precio: number;
   imagen_url: string | null;
   cantidad: number;
+  // Unidades que había al agregarlo (null = sin límite). El servidor
+  // vuelve a controlar al confirmar, por si alguien pidió antes.
+  stock?: number | null;
 };
+
+// ¿Se puede sumar una unidad más?
+export const canAddMore = (item: Pick<CartItem, "cantidad" | "stock">) =>
+  item.stock == null || item.cantidad < item.stock;
 
 const CART_KEY = "@kiosco_cart";
 const EVENT_NAME = "cart-updated"; // Nombre del evento global
@@ -68,24 +75,33 @@ export function useCart() {
     }
   };
 
+  // Devuelve false si ya no quedan unidades para agregar
   const addToCart = (item: Omit<CartItem, "cantidad">) => {
     const existing = items.find((i) => i.id === item.id);
     if (existing) {
+      const updated = { ...existing, stock: item.stock };
+      if (!canAddMore(updated)) return false;
       saveCart(
         items.map((i) =>
-          i.id === item.id ? { ...i, cantidad: i.cantidad + 1 } : i,
+          i.id === item.id ? { ...updated, cantidad: i.cantidad + 1 } : i,
         ),
       );
     } else {
+      if (item.stock === 0) return false;
       saveCart([...items, { ...item, cantidad: 1 }]);
     }
+    return true;
   };
 
   const updateQuantity = (id: number, delta: number) => {
     saveCart(
       items.map((item) => {
         if (item.id === id) {
-          return { ...item, cantidad: Math.max(1, item.cantidad + delta) };
+          const max = item.stock ?? Infinity;
+          return {
+            ...item,
+            cantidad: Math.min(max, Math.max(1, item.cantidad + delta)),
+          };
         }
         return item;
       }),

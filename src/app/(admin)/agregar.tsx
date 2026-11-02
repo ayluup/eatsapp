@@ -28,6 +28,7 @@ export default function AdminAgregarScreen() {
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [precio, setPrecio] = useState("");
+  const [stock, setStock] = useState("");
   const [categoria, setCategoria] = useState("Comida");
   const [base64Image, setBase64Image] = useState<string | null>(null);
   const [disponible, setDisponible] = useState(true);
@@ -84,6 +85,13 @@ export default function AdminAgregarScreen() {
       return showAlert("Precio inválido", "Ingresá un precio mayor a 0.");
     }
 
+    // Vacío = sin control de unidades
+    const stockNum = stock.trim() === "" ? null : Number(stock.trim());
+    if (stockNum !== null && (!Number.isInteger(stockNum) || stockNum < 0)) {
+      showAlert("Unidades inválidas", "Ingresá un número entero de 0 o más, o dejalo vacío.");
+      return;
+    }
+
     setLoading(true);
     try {
       const { error } = await supabase.from("menus").insert({
@@ -91,7 +99,8 @@ export default function AdminAgregarScreen() {
         descripcion: descripcion.trim() || null,
         precio: precioNum,
         categoria,
-        disponible,
+        disponible: stockNum === 0 ? false : disponible,
+        stock: stockNum,
         imagen_url: await saveProductImage(base64Image),
       });
 
@@ -281,6 +290,29 @@ export default function AdminAgregarScreen() {
           </View>
         </View>
 
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Unidades en stock</Text>
+          <View style={styles.inputWrapper}>
+            <Ionicons
+              name="layers-outline"
+              size={20}
+              color={c.textMuted}
+              style={styles.inputIcon}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Ej: 20 (vacío = sin límite)"
+              placeholderTextColor={c.textFaint}
+              value={stock}
+              onChangeText={(t) => setStock(t.replace(/[^0-9]/g, ""))}
+              keyboardType="number-pad"
+            />
+          </View>
+          <Text style={styles.hint}>
+            Cada pedido descuenta unidades. Al llegar a 0 pasa a Agotado solo.
+          </Text>
+        </View>
+
         {/* Selector de Categoría tipo Chips */}
         <View style={styles.formGroup}>
           <Text style={styles.label}>Categoría</Text>
@@ -314,8 +346,9 @@ export default function AdminAgregarScreen() {
             <Text style={styles.switchLabel}>¿Hay stock disponible?</Text>
           </View>
           <Switch
-            value={disponible}
+            value={disponible && stock.trim() !== "0"}
             onValueChange={setDisponible}
+            disabled={stock.trim() === "0"}
             trackColor={{ false: c.textFaint, true: c.success }}
             thumbColor={disponible ? c.onAccent : c.surfaceMuted}
             ios_backgroundColor={c.textFaint}
@@ -543,6 +576,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     marginLeft: 4,
   },
   required: { color: c.danger },
+  hint: { fontSize: 12, color: c.textMuted, marginTop: 6, marginLeft: 4 },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
