@@ -21,6 +21,7 @@ import {
 import { ThemeColors } from "../../constants/theme";
 import { useAppTheme } from "../../context/ThemeContext";
 import { useThemedStyles } from "../../hooks/use-themed-styles";
+import { useTableRealtime } from "../../hooks/use-orders-realtime";
 import { showAlert } from "../../components/app-alert";
 
 export type Menu = {
@@ -86,6 +87,9 @@ export default function AdminMenuScreen() {
       fetchMenusData().then(applyMenus);
     }, []),
   );
+
+  // El stock baja solo a medida que los alumnos compran
+  useTableRealtime("menus", fetchMenus);
 
   const toggleStock = async (item: Menu) => {
     if (item.stock === 0) {

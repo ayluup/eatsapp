@@ -7,6 +7,7 @@ import { AccessibilityToggleButton } from "../../components/accessibility-toggle
 import { ThemeToggleButton } from "../../components/theme-toggle-button";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../hooks/useCart";
+import { useTableRealtime } from "../../hooks/use-orders-realtime";
 import { showAlert } from "../../components/app-alert";
 import { useAppTheme } from "../../context/ThemeContext";
 import { announce } from "../../utils/announce";
@@ -41,6 +42,26 @@ const CATEGORIES = ["Todos", "Comida", "Gaseosas", "Bebidas"];
 // Para buscar sin importar mayúsculas ni tildes ("cafe" encuentra "Café")
 const normalize = (t: string) =>
   t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+// Con esta cantidad o menos se avisa que quedan pocas unidades
+const LOW_STOCK = 5;
+
+// Cómo se muestra el stock de un producto: agotado, pocas unidades o disponible
+function stockInfo(item: MenuItem) {
+  if (!item.disponible) {
+    return { kind: "out", label: "Agotado", spoken: "agotado", icon: "close-circle" } as const;
+  }
+  if (item.stock != null && item.stock <= LOW_STOCK) {
+    const one = item.stock === 1;
+    return {
+      kind: "low",
+      label: one ? "¡Queda 1!" : `¡Quedan ${item.stock}!`,
+      spoken: one ? "queda 1 unidad" : `quedan ${item.stock} unidades`,
+      icon: "alert-circle",
+    } as const;
+  }
+  return { kind: "in", label: "Disponible", spoken: "disponible", icon: "checkmark-circle" } as const;
+}
 
 // Trae los productos (null si falló)
 async function fetchMenuData(): Promise<MenuItem[] | null> {
@@ -90,6 +111,14 @@ export default function StudentMenuScreen() {
       });
     }, []),
   );
+
+  // Si otro alumno compra o el kiosco cambia un producto, el stock y los
+  // precios se actualizan solos, sin recargar
+  useTableRealtime("menus", () => {
+    fetchMenuData().then((data) => {
+      if (data) setMenu(data);
+    });
+  });
 
   const handleAddToCart = (item: MenuItem) => {
     if (!item.disponible) return;
@@ -221,6 +250,7 @@ export default function StudentMenuScreen() {
           const hasImage =
             typeof item.imagen_url === "string" && item.imagen_url.length > 0;
           const isDisabled = !item.disponible;
+          const stock = stockInfo(item);
 
           return (
             <Pressable
@@ -232,13 +262,7 @@ export default function StudentMenuScreen() {
               onPress={() => handleAddToCart(item)}
               disabled={isDisabled}
               accessibilityRole="button"
-              accessibilityLabel={`${item.nombre}, ${formatPrice(item.precio)}, ${
-                !item.disponible
-                  ? "agotado"
-                  : item.stock != null && item.stock <= 5
-                    ? `quedan ${item.stock}`
-                    : "disponible"
-              }`}
+              accessibilityLabel={`${item.nombre}, ${formatPrice(item.precio)}, ${stock.spoken}`}
               accessibilityHint={isDisabled ? undefined : "Agrega el producto al carrito"}
               accessibilityState={{ disabled: isDisabled }}
             >
@@ -265,23 +289,15 @@ export default function StudentMenuScreen() {
                 <View
                   style={[
                     styles.stockBadge,
-                    item.disponible
-                      ? styles.badgeInStock
-                      : styles.badgeOutOfStock,
+                    stock.kind === "out"
+                      ? styles.badgeOutOfStock
+                      : stock.kind === "low"
+                        ? styles.badgeLowStock
+                        : styles.badgeInStock,
                   ]}
                 >
-                  <Ionicons
-                    name={item.disponible ? "checkmark-circle" : "close-circle"}
-                    size={14}
-                    color={c.onAccent}
-                  />
-                  <Text style={styles.stockText}>
-                    {!item.disponible
-                      ? "Agotado"
-                      : item.stock != null && item.stock <= 5
-                        ? `Quedan ${item.stock}`
-                        : "Disponible"}
-                  </Text>
+                  <Ionicons name={stock.icon} size={14} color={c.onAccent} />
+                  <Text style={styles.stockText}>{stock.label}</Text>
                 </View>
               </View>
 
@@ -542,6 +558,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     gap: 4,
   },
   badgeInStock: { backgroundColor: c.stockIn },
+  badgeLowStock: { backgroundColor: c.stockLow },
   badgeOutOfStock: { backgroundColor: c.stockOut },
   stockText: { fontSize: 11, fontWeight: "700", color: c.onAccent },
 

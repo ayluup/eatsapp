@@ -1,10 +1,10 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "../services/supabase";
 
-// Avisa cuando se crea o cambia un pedido (Supabase Realtime). RLS decide
-// qué pedidos llegan: el admin recibe todos y el alumno solo los suyos.
+// Avisa cuando cambia algo en una tabla (Supabase Realtime). RLS decide qué
+// filas llegan: cada uno recibe solo los cambios que tiene permiso de ver.
 // Varios cambios seguidos se juntan en un solo aviso.
-export function useOrdersRealtime(onChange: () => void, filter?: string) {
+export function useTableRealtime(table: string, onChange: () => void, filter?: string) {
   const callback = useRef(onChange);
   useEffect(() => {
     callback.current = onChange;
@@ -13,10 +13,10 @@ export function useOrdersRealtime(onChange: () => void, filter?: string) {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const channel = supabase
-      .channel(`pedidos-${filter ?? "todos"}`)
+      .channel(`${table}-${filter ?? "todos"}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "pedidos", ...(filter ? { filter } : {}) },
+        { event: "*", schema: "public", table, ...(filter ? { filter } : {}) },
         () => {
           clearTimeout(timer);
           timer = setTimeout(() => callback.current(), 300);
@@ -28,5 +28,11 @@ export function useOrdersRealtime(onChange: () => void, filter?: string) {
       clearTimeout(timer);
       supabase.removeChannel(channel);
     };
-  }, [filter]);
+  }, [table, filter]);
+}
+
+// Pedidos nuevos o que cambian de estado. El admin recibe todos y el
+// alumno solo los suyos.
+export function useOrdersRealtime(onChange: () => void, filter?: string) {
+  useTableRealtime("pedidos", onChange, filter);
 }

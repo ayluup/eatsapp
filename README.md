@@ -117,7 +117,7 @@ Las credenciales de prueba (un admin y un alumno) **se entregan en privado al do
 |---|---|
 | App (Android, iOS y web) | **React Native** + **Expo SDK 58**, **Expo Router** (navegación por archivos) y **TypeScript** |
 | Backend | **Supabase**: PostgreSQL, Auth, Storage, Realtime y Edge Functions |
-| Autenticación | Supabase Auth (JWT) con email y contraseña, y **Google OAuth**. La sesión se guarda cifrada con `expo-secure-store` |
+| Autenticación | Supabase Auth (JWT) con email y contraseña, y **Google OAuth**. La sesión queda guardada en el dispositivo y el token se renueva solo |
 | Base de datos | PostgreSQL con **RLS**, triggers y funciones `security definer` |
 | Tiempo real | Supabase Realtime: los pedidos se actualizan sin recargar |
 | Notificaciones push | `expo-notifications` + **Expo Push**, enviadas desde la base con `pg_net` |
@@ -129,6 +129,8 @@ Las credenciales de prueba (un admin y un alumno) **se entregan en privado al do
 ---
 
 ## Arquitectura
+
+> La explicación completa de cada funcionalidad, la base de datos y la seguridad está en **[ARQUITECTURA.md](ARQUITECTURA.md)**.
 
 ```
  ┌──────────────┐        HTTPS + JWT         ┌──────────────────────────────┐
@@ -205,7 +207,7 @@ El acceso al panel de Supabase (base de datos, usuarios y logs) se comparte **en
 - Ninguna clave secreta está en el código ni en la app. La app solo tiene la *anon key* pública de Supabase, que no da acceso a nada por sí sola: todo pasa por RLS.
 - La clave de Gemini está como secreto de la Edge Function, y la de Firebase (FCM) solo en EAS. Las dos están excluidas del repo en `.gitignore`.
 - Las contraseñas las maneja Supabase Auth (hash bcrypt). La app nunca las guarda.
-- La sesión (JWT con refresh token) se guarda cifrada en el dispositivo con `expo-secure-store`.
+- La sesión (JWT de corta duración más refresh token) queda guardada en el almacenamiento de la app para no tener que volver a iniciar sesión, y se renueva automáticamente mientras la app está abierta.
 - Validaciones en los dos lados: la app avisa de los datos vacíos o con formato incorrecto, y la base vuelve a validar todo (precios, stock, estados permitidos y permisos).
 
 ---

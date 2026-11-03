@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EatsApp · Pedí en el kiosco sin hacer fila</title>
+  <meta name="description" content="EatsApp: la app del Kiosco EPET 12. Mirá el menú, pedí desde el celular y retirá cuando esté listo. Descargala gratis para Android.">
+  <meta property="og:title" content="EatsApp · Kiosco EPET 12">
+  <meta property="og:description" content="Pedí en el kiosco sin hacer fila. Descargala gratis para Android.">
+  <meta property="og:image" content="logo.png">
+  <meta name="theme-color" content="#083335">
+  <link rel="icon" href="favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --brand: #083335;
+      --brand-soft: #e3f0ee;
+      --gold: #cd9443;
+      --gold-text: #8a5208;
+      --bg: #fbf9f4;
+      --cream: #f4eee2;
+      --surface: #ffffff;
+      --text: #0f1f1e;
+      --text-2: #45524f;
+      --line: #e3dccd;
+      --focus: #8a5208;
+      --radius: 22px;
+      --shadow: 0 1px 2px rgba(8,51,53,.06), 0 12px 32px -12px rgba(8,51,53,.18);
+      --serif: "Fraunces", Georgia, "Times New Roman", serif;
+      --sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #061718;
+        --cream: #0a2224;
+        --surface: #0e2a2c;
+        --text: #eef5f3;
+        --text-2: #b3c6c3;
+        --line: #1f4446;
+        --brand-soft: #123a3c;
+        --gold-text: #f0c27f;
+        --focus: #f0c27f;
+        --shadow: 0 1px 2px rgba(0,0,0,.3), 0 16px 40px -16px rgba(0,0,0,.6);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+    body {
+      margin: 0; font-family: var(--sans); font-size: 1.0625rem; line-height: 1.65;
+      color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased;
+    }
+    img { max-width: 100%; height: auto; }
+    a { color: inherit; }
+    :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-radius: 8px; }
+    h1, h2, h3 { font-family: var(--serif); font-weight: 600; line-height: 1.1; margin: 0; letter-spacing: -.01em; }
+    .wrap { max-width: 1140px; margin: 0 auto; padding: 0 1.5rem; }
+    .skip {
+      position: absolute; left: 1rem; top: -4rem; z-index: 20; background: var(--gold); color: #1a1205;
+      padding: .7rem 1.1rem; border-radius: 12px; font-weight: 700; text-decoration: none;
+    }
+    .skip:focus { top: 1rem; }
+
+    /* ---------- Navegación ---------- */
+    .nav {
+      position: sticky; top: 0; z-index: 10; background: rgba(8,51,53,.94);
+      backdrop-filter: saturate(140%) blur(12px); -webkit-backdrop-filter: saturate(140%) blur(12px);
+      border-bottom: 1px solid rgba(255,255,255,.08); color: #fff;
+    }
+    .nav .wrap { display: flex; align-items: center; height: 68px; gap: 2rem; }
+    .brand { display: flex; align-items: center; gap: .65rem; text-decoration: none; font-family: var(--serif); font-size: 1.45rem; font-weight: 600; }
+    .brand img { width: 38px; height: 38px; }
+    .nav ul { display: flex; gap: 1.75rem; list-style: none; margin: 0 0 0 auto; padding: 0; }
+    .nav ul a { text-decoration: none; color: #d3e6e3; font-weight: 500; font-size: .95rem; }
+    .nav ul a:hover { color: #fff; }
+    .nav .cta-sm {
+      background: var(--gold); color: #1a1205; text-decoration: none; font-weight: 700; font-size: .92rem;
+      padding: .6rem 1.1rem; border-radius: 10px; white-space: nowrap;
+    }
+    @media (max-width: 900px) { .nav nav { display: none; } .nav .cta-sm { margin-left: auto; } }
+
+    /* ---------- Hero ---------- */
+    .hero {
+      position: relative; overflow: hidden; color: #fff;
+      background:
+        radial-gradient(900px 500px at 85% 10%, rgba(205,148,67,.22), transparent 60%),
+        radial-gradient(700px 500px at 0% 100%, rgba(99,142,193,.18), transparent 60%),
+        var(--brand);
+      padding: 5rem 0 6rem;
+    }
+    .hero .wrap { display: grid; grid-template-columns: 1.1fr .9fr; gap: 3rem; align-items: center; }
+    @media (max-width: 920px) { .hero .wrap { grid-template-columns: 1fr; text-align: center; gap: 4rem; } }
+    .pill {
+      display: inline-flex; align-items: center; gap: .5rem; padding: .4rem .9rem; border-radius: 999px;
+      background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18);
+      font-size: .85rem; font-weight: 600; color: #e6f2f0;
+    }
+    .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: #7ee2b8; }
+    .hero h1 { font-size: clamp(2.8rem, 6.5vw, 4.8rem); margin: 1.2rem 0; }
+    .hero h1 em { font-style: italic; color: #f3c98d; }
+    .hero .lead { font-size: 1.2rem; color: #d6e7e4; max-width: 33ch; margin: 0 0 2.2rem; }
+    @media (max-width: 920px) { .hero .lead { margin-inline: auto; } }
+    .actions { display: flex; flex-wrap: wrap; gap: .9rem; }
+    @media (max-width: 920px) { .actions { justify-content: center; } }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: .6rem;
+      min-height: 54px; padding: .85rem 1.6rem; border-radius: 14px;
+      font-weight: 700; font-size: 1.03rem; text-decoration: none; border: 2px solid transparent;
+      transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+    .btn svg { width: 22px; height: 22px; flex: none; }
+    .btn-gold { background: var(--gold); color: #1a1205; box-shadow: 0 10px 30px -10px rgba(205,148,67,.7); }
+    .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 16px 36px -12px rgba(205,148,67,.8); }
+    .btn-outline { border-color: rgba(255,255,255,.45); color: #fff; }
+    .btn-outline:hover { background: rgba(255,255,255,.08); }
+    .hero-meta { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-top: 1.6rem; font-size: .92rem; color: #c9dedb; }
+    @media (max-width: 920px) { .hero-meta { justify-content: center; } }
+    .hero-meta span { display: inline-flex; align-items: center; gap: .4rem; }
+    .hero-meta svg { width: 18px; height: 18px; color: #7ee2b8; }
+
+    /* Celular de muestra (reproduce la pantalla de menú de la app) */
+    .phone-wrap { position: relative; justify-self: center; }
+    .phone {
+      width: 300px; border-radius: 44px; padding: 12px; background: #0b0f10;
+      box-shadow: 0 40px 80px -20px rgba(0,0,0,.55), inset 0 0 0 2px #2b3335;
+      transform: rotate(-3deg);
+    }
+    .screen { border-radius: 34px; overflow: hidden; background: #f8fafc; color: #0f172a; font-family: var(--sans); text-align: left; }
+    .notch { height: 26px; display: flex; justify-content: center; align-items: center; }
+    .notch::before { content: ""; width: 90px; height: 20px; border-radius: 12px; background: #0b0f10; }
+    .app-head { padding: 6px 18px 10px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .app-head b { display: block; font-size: 19px; font-weight: 800; letter-spacing: -.3px; }
+    .app-head small { font-size: 11px; color: #64748b; line-height: 1.3; display: block; }
+    .app-icon { width: 30px; height: 30px; border-radius: 9px; background: #fef2f2; border: 1px solid #fecaca; flex: none; }
+    .app-tools { display: flex; gap: 6px; padding: 0 18px 10px; }
+    .app-tools i { width: 30px; height: 30px; border-radius: 9px; background: #fff; border: 1px solid #e2e8f0; display: block; }
+    .app-tools i:last-child { background: #e0eaf6; border-color: #e0eaf6; }
+    .chips { display: flex; gap: 5px; padding: 0 14px 12px; }
+    .chips span { font-size: 10.5px; font-weight: 700; padding: 6px 9px; border-radius: 10px; background: #fff; border: 1px solid #e2e8f0; color: #475569; }
+    .chips span.on { background: #cd9443; border-color: #cd9443; color: #fff; }
+    .item { margin: 0 14px 10px; background: #fff; border-radius: 16px; padding: 10px; display: flex; gap: 10px; align-items: center; box-shadow: 0 2px 8px rgba(15,23,42,.06); }
+    .thumb { width: 54px; height: 54px; border-radius: 12px; display: grid; place-items: center; font-size: 28px; flex: none; }
+    .item .info { flex: 1; min-width: 0; line-height: 1.35; }
+    .item .info b { display: block; font-size: 13px; font-weight: 700; }
+    .item .info .price { font-size: 13px; font-weight: 800; color: #285c97; }
+    .badge { display: inline-block; font-size: 9.5px; font-weight: 800; color: #fff; padding: 2px 7px; border-radius: 6px; margin-top: 3px; }
+    .add { width: 32px; height: 32px; border-radius: 10px; background: #63c184; color: #fff; display: grid; place-items: center; font-size: 20px; font-weight: 700; flex: none; }
+    .item.off { opacity: .55; }
+    .screen-bottom { height: 18px; }
+    .toast {
+      position: absolute; right: -24px; bottom: 64px; width: 236px; background: var(--surface); color: var(--text);
+      border-radius: 18px; padding: 12px 14px; display: flex; gap: 10px; align-items: center;
+      box-shadow: 0 24px 50px -16px rgba(0,0,0,.5); border: 1px solid var(--line); text-align: left;
+      animation: float 5s ease-in-out infinite;
+    }
+    .toast .ic { width: 38px; height: 38px; border-radius: 11px; background: var(--brand); display: grid; place-items: center; flex: none; }
+    .toast .ic img { width: 30px; height: 30px; }
+    .toast b { display: block; font-size: .9rem; line-height: 1.3; }
+    .toast small { font-size: .8rem; color: var(--text-2); }
+    @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    @media (max-width: 420px) { .phone { width: 272px; } .toast { right: -4px; width: 210px; } }
+
+    /* ---------- Franja de datos ---------- */
+    .strip { background: var(--surface); border-bottom: 1px solid var(--line); }
+    .strip .wrap { display: grid; grid-template-columns: repeat(4, 1fr); }
+    @media (max-width: 760px) { .strip .wrap { grid-template-columns: repeat(2, 1fr); } }
+    .stat { padding: 1.8rem 1rem; text-align: center; }
+    .stat + .stat { border-left: 1px solid var(--line); }
+    @media (max-width: 760px) { .stat:nth-child(3) { border-left: none; } .stat:nth-child(n+3) { border-top: 1px solid var(--line); } }
+    .stat b { display: block; font-family: var(--serif); font-size: 2rem; line-height: 1.15; }
+    .stat span { font-size: .92rem; color: var(--text-2); }
+
+    /* ---------- Secciones ---------- */
+    section { padding: 6rem 0; }
+    @media (max-width: 600px) { section { padding: 4.5rem 0; } }
+    section.tint { background: var(--cream); }
+    .head { max-width: 680px; margin-bottom: 3rem; }
+    .head.center { text-align: center; margin-inline: auto; }
+    .kicker { display: inline-block; font-size: .8rem; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; color: var(--gold-text); margin-bottom: .8rem; }
+    h2 { font-size: clamp(2.1rem, 4.4vw, 3.2rem); margin-bottom: 1rem; }
+    .head p { color: var(--text-2); margin: 0; font-size: 1.1rem; }
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.8rem; box-shadow: var(--shadow); }
+    .card h3 { font-size: 1.45rem; margin-bottom: .5rem; }
+    .card p { margin: 0; color: var(--text-2); }
+
+    /* Problema */
+    .vs { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 760px) { .vs { grid-template-columns: 1fr; } }
+    .vs ul { list-style: none; padding: 0; margin: 1rem 0 0; display: grid; gap: .7rem; }
+    .vs li { display: flex; gap: .7rem; align-items: flex-start; color: var(--text-2); }
+    .vs li svg { width: 22px; height: 22px; flex: none; margin-top: 2px; }
+    .vs .bad svg { color: #b42318; }
+    @media (prefers-color-scheme: dark) { .vs .bad svg { color: #fda29b; } }
+    .vs .good { background: var(--brand); color: #fff; border-color: var(--brand); }
+    .vs .good h3 { color: #fff; }
+    .vs .good li { color: #d6e7e4; }
+    .vs .good svg { color: #7ee2b8; }
+    .tag { display: inline-block; font-size: .78rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; padding: .25rem .7rem; border-radius: 999px; margin-bottom: 1rem; }
+    .tag.red { background: #fee4e2; color: #912018; }
+    .tag.green { background: rgba(126,226,184,.18); color: #b9f3da; }
+
+    /* Cómo funciona */
+    .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem 1.25rem; counter-reset: s; }
+    @media (max-width: 900px) { .flow { grid-template-columns: 1fr 1fr; row-gap: 2.5rem; } }
+    @media (max-width: 520px) { .flow { grid-template-columns: 1fr; } }
+    .flow .card { counter-increment: s; position: relative; padding-top: 2.4rem; }
+    .flow .card::before {
+      content: counter(s); position: absolute; top: -18px; left: 1.6rem; width: 40px; height: 40px; border-radius: 12px;
+      background: var(--brand); color: #fff; display: grid; place-items: center; font-weight: 800; font-family: var(--sans);
+      box-shadow: 0 8px 20px -8px rgba(8,51,53,.6);
+    }
+    @media (prefers-color-scheme: dark) { .flow .card::before { background: var(--gold); color: #1a1205; } }
+    .status { display: inline-flex; align-items: center; gap: .4rem; font-size: .82rem; font-weight: 700; padding: .3rem .7rem; border-radius: 999px; margin-bottom: .9rem; }
+    .st-1 { background: #fef3c7; color: #7a3e06; }
+    .st-2 { background: #dbeafe; color: #1e3a8a; }
+    .st-3 { background: #dcfce7; color: #14532d; }
+    .st-4 { background: #ede9fe; color: #4c1d95; }
+
+    /* Funciones (bento) */
+    .bento { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1.25rem; }
+    .bento .card { grid-column: span 2; }
+    .bento .wide { grid-column: span 3; }
+    @media (max-width: 900px) { .bento .card, .bento .wide { grid-column: span 3; } }
+    @media (max-width: 600px) { .bento .card, .bento .wide { grid-column: span 6; } }
+    .ico {
+      width: 52px; height: 52px; border-radius: 15px; display: grid; place-items: center; margin-bottom: 1.1rem;
+      background: var(--brand-soft); color: var(--brand);
+    }
+    @media (prefers-color-scheme: dark) { .ico { color: #9fe0d6; } }
+    .ico svg { width: 26px; height: 26px; }
+    .bento .feature-dark { background: var(--brand); border-color: var(--brand); color: #fff; }
+    .bento .feature-dark h3 { color: #fff; }
+    .bento .feature-dark p { color: #d6e7e4; }
+    .bento .feature-dark .ico { background: rgba(255,255,255,.1); color: #f3c98d; }
+    .chat { margin-top: 1.2rem; display: grid; gap: .5rem; }
+    .chat span { display: inline-block; background: rgba(255,255,255,.12); border-radius: 14px 14px 14px 4px; padding: .5rem .9rem; font-size: .95rem; width: fit-content; max-width: 90%; }
+    .chat span.me { background: var(--gold); color: #1a1205; border-radius: 14px 14px 4px 14px; justify-self: end; font-weight: 600; }
+
+    /* Roles */
+    .roles { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 760px) { .roles { grid-template-columns: 1fr; } }
+    .role-head { display: flex; align-items: center; gap: .9rem; margin-bottom: 1.1rem; }
+    .role-head h3 { margin: 0; }
+    .role-head .emoji { font-size: 1.9rem; width: 58px; height: 58px; border-radius: 16px; background: var(--brand-soft); display: grid; place-items: center; flex: none; }
+    .check { list-style: none; padding: 0; margin: 0; display: grid; gap: .65rem; }
+    .check li { display: flex; gap: .65rem; color: var(--text-2); }
+    .check li::before { content: "✓"; font-weight: 800; color: var(--gold-text); }
+
+    /* Accesibilidad */
+    .a11y { display: grid; grid-template-columns: .9fr 1.1fr; gap: 3rem; align-items: center; }
+    @media (max-width: 900px) { .a11y { grid-template-columns: 1fr; } }
+    .a11y-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; }
+    @media (max-width: 480px) { .a11y-grid { grid-template-columns: 1fr; } }
+    .a11y-item { display: flex; gap: .8rem; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: .95rem 1.1rem; }
+    .a11y-item .e { font-size: 1.35rem; width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; background: var(--brand-soft); flex: none; }
+    .a11y-item b { display: block; font-size: .98rem; line-height: 1.3; }
+    .a11y-item small { color: var(--text-2); font-size: .86rem; }
+
+    /* Instalación */
+    .install { display: grid; grid-template-columns: 1.25fr .75fr; gap: 2rem; align-items: start; }
+    @media (max-width: 900px) { .install { grid-template-columns: 1fr; } }
+    .steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 1rem; counter-reset: st; }
+    .steps li { counter-increment: st; display: grid; grid-template-columns: 48px 1fr; gap: 1rem; align-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 1.2rem 1.3rem; }
+    .steps li::before { content: counter(st); width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; background: var(--brand-soft); color: var(--text); font-weight: 800; font-size: 1.15rem; }
+    .steps strong { display: block; font-size: 1.08rem; margin-bottom: .15rem; }
+    .steps span { color: var(--text-2); }
+    .download {
+      position: sticky; top: 92px; color: #fff; border: none; text-align: center;
+      background: radial-gradient(400px 300px at 100% 0%, rgba(205,148,67,.3), transparent 60%), var(--brand);
+    }
+    .download img { width: 96px; margin: 0 auto 1rem; display: block; }
+    .download h3 { color: #fff; font-size: 1.7rem; }
+    .download p { color: #d6e7e4; margin: .4rem 0 1.4rem; }
+    .download .btn { width: 100%; }
+    .req { list-style: none; padding: 0; margin: 1.4rem 0 0; display: grid; gap: .5rem; text-align: left; font-size: .95rem; color: #d6e7e4; }
+    .req li { display: flex; gap: .6rem; }
+    .req li::before { content: "•"; color: #f3c98d; font-weight: 800; }
+
+    /* Primeros pasos */
+    .guide { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+    @media (max-width: 900px) { .guide { grid-template-columns: 1fr; } }
+    .guide ol { margin: 1rem 0 0; padding-left: 1.2rem; color: var(--text-2); }
+    .guide li { margin: .45rem 0; }
+    .guide li::marker { color: var(--gold-text); font-weight: 700; }
+    .note {
+      margin-top: 2rem; padding: 1.3rem 1.5rem; border-radius: 18px; display: flex; gap: 1rem; align-items: flex-start;
+      background: var(--brand-soft); color: var(--text);
+    }
+    .note svg { width: 26px; height: 26px; flex: none; color: var(--gold-text); margin-top: 2px; }
+
+    /* Preguntas */
+    .faq { max-width: 780px; margin: 0 auto; display: grid; gap: .8rem; }
+    .faq details { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 0 1.4rem; }
+    .faq summary {
+      cursor: pointer; list-style: none; padding: 1.15rem 0; font-weight: 700; font-size: 1.05rem;
+      display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+    }
+    .faq summary::-webkit-details-marker { display: none; }
+    .faq summary::after { content: "+"; font-size: 1.6rem; font-weight: 400; line-height: 1; color: var(--gold-text); transition: transform .2s; flex: none; }
+    .faq details[open] summary::after { transform: rotate(45deg); }
+    .faq details p { margin: 0 0 1.2rem; color: var(--text-2); }
+
+    /* Tecnologías */
+    .tech { display: flex; flex-wrap: wrap; justify-content: center; gap: .7rem; list-style: none; padding: 0; margin: 0; }
+    .tech li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: .55rem 1.1rem; font-weight: 600; color: var(--text-2); }
+
+    /* Cierre */
+    .final {
+      color: #fff; text-align: center;
+      background: radial-gradient(700px 400px at 50% 0%, rgba(205,148,67,.25), transparent 65%), var(--brand);
+    }
+    .final h2 { color: #fff; }
+    .final p { color: #d6e7e4; font-size: 1.15rem; margin: 0 auto 2rem; max-width: 46ch; }
+    .final .actions { justify-content: center; }
+
+    footer { background: #041314; color: #a9c2be; padding: 2.2rem 0; font-size: .93rem; }
+    footer .wrap { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; align-items: center; }
+    footer .brand { color: #fff; font-size: 1.2rem; }
+    footer .brand img { width: 30px; height: 30px; }
+    footer a.gh { color: #fff; font-weight: 700; }
+
+    /* Aparición al hacer scroll */
+    .js .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
+    .js .reveal.in { opacity: 1; transform: none; }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .toast { animation: none; }
+      .phone { transform: none; }
+      .btn, .faq summary::after { transition: none; }
+      .js .reveal { opacity: 1; transform: none; transition: none; }
+      .btn-gold:hover { transform: none; }
+    }
+  </style>
+  <script>document.documentElement.classList.add("js");</script>
+</head>
+<body>
+  <a class="skip" href="#contenido">Saltar al contenido</a>
+
+  <header class="nav">
+    <div class="wrap">
+      <a class="brand" href="#" aria-label="EatsApp, inicio">
+        <img src="logo.png" alt="" width="38" height="38">
+        EatsApp
+      </a>
+      <nav aria-label="Principal">
+        <ul>
+          <li><a href="#como-funciona">Cómo funciona</a></li>
+          <li><a href="#funciones">Funciones</a></li>
+          <li><a href="#accesibilidad">Accesibilidad</a></li>
+          <li><a href="#instalar">Instalar</a></li>
+          <li><a href="#preguntas">Preguntas</a></li>
+        </ul>
+      </nav>
+      <a class="cta-sm" href="#instalar">Descargar</a>
+    </div>
+  </header>
+
+  <!-- ================= INICIO ================= -->
+  <section class="hero" aria-labelledby="titulo">
+    <div class="wrap">
+      <div>
+        <span class="pill"><span class="dot" aria-hidden="true"></span> La app del Kiosco EPET 12</span>
+        <h1 id="titulo">Pedí en el kiosco <em>sin hacer fila.</em></h1>
+        <p class="lead">Mirá el menú, pedí desde el celular y retirá tu pedido cuando esté listo. El recreo es para disfrutarlo.</p>
+        <div class="actions">
+          <a class="btn btn-gold" href="https://github.com/ayluup/eatsapp/releases/latest/download/EatsApp.apk" download>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M5 21h14"/></svg>
+            Descargar para Android
+          </a>
+          <a class="btn btn-outline" href="#como-funciona">Ver cómo funciona</a>
+        </div>
+        <div class="hero-meta">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Gratis</span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Android 7 o superior</span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Entrás con Google</span>
+        </div>
+      </div>
+
+      <div class="phone-wrap" role="img" aria-label="Vista de la app: el menú del kiosco con productos, precios y stock, y una notificación que avisa que el pedido está listo">
+        <div class="phone" aria-hidden="true">
+          <div class="screen">
+            <div class="notch"></div>
+            <div class="app-head">
+              <div><b>Menú del Kiosco</b><small>Seleccioná lo que quieras pedir hoy</small></div>
+              <span class="app-icon"></span>
+            </div>
+            <div class="app-tools"><i></i><i></i><i></i></div>
+            <div class="chips"><span class="on">Todos</span><span>Comida</span><span>Bebida</span><span>Snacks</span></div>
+            <div class="item">
+              <div class="thumb" style="background:#fff4e0">🥪</div>
+              <div class="info"><b>Sándwich de miga</b><span class="price">$1.800</span><br><span class="badge" style="background:#3f8f5b">Disponible</span></div>
+              <div class="add">+</div>
+            </div>
+            <div class="item">
+              <div class="thumb" style="background:#fff1e6">🧃</div>
+              <div class="info"><b>Jugo de naranja</b><span class="price">$1.200</span><br><span class="badge" style="background:#b45309">Quedan 3</span></div>
+              <div class="add">+</div>
+            </div>
+            <div class="item">
+              <div class="thumb" style="background:#f3ebe4">🍫</div>
+              <div class="info"><b>Alfajor triple</b><span class="price">$950</span><br><span class="badge" style="background:#3f8f5b">Disponible</span></div>
+              <div class="add">+</div>
+            </div>
+            <div class="item off">
+              <div class="thumb" style="background:#eef2f7">🥤</div>
+              <div class="info"><b>Agua saborizada</b><span class="price">$900</span><br><span class="badge" style="background:#b51212">Agotado</span></div>
+            </div>
+            <div class="screen-bottom"></div>
+          </div>
+        </div>
+        <div class="toast" aria-hidden="true">
+          <div class="ic"><img src="logo.png" alt=""></div>
+          <div><b>Tu pedido está listo</b><small>PED-482193 · Pasá a retirarlo</small></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="strip">
+    <div class="wrap">
+      <div class="stat"><b>Sin fila</b><span>pedís desde el aula</span></div>
+      <div class="stat"><b>Al instante</b><span>avisos de tu pedido</span></div>
+      <div class="stat"><b>3 roles</b><span>alumno, admin y superadmin</span></div>
+      <div class="stat"><b>8</b><span>opciones de accesibilidad</span></div>
+    </div>
+  </div>
+
+  <main id="contenido">
+
+    <!-- ================= PROBLEMA ================= -->
+    <section id="problema">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="kicker">El problema</span>
+          <h2>El recreo es corto. La fila del kiosco, no.</h2>
+          <p>Cuando suena el timbre, todos van al kiosco al mismo tiempo. Muchos se quedan sin comprar y el kiosco no sabe qué va a vender.</p>
+        </div>
+        <div class="vs">
+          <div class="card bad reveal">
+            <span class="tag red">Sin EatsApp</span>
+            <h3>Fila, apuro y sorpresas</h3>
+            <ul>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>Se pierde medio recreo esperando.</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>Llegás al mostrador y lo que querías se agotó.</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>El kiosco prepara todo sobre la marcha.</li>
+            </ul>
+          </div>
+          <div class="card good reveal">
+            <span class="tag green">Con EatsApp</span>
+            <h3>Pedís antes, retirás cuando está listo</h3>
+            <ul>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Pedís desde el aula, en segundos.</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Ves el stock real antes de pedir.</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>El kiosco recibe los pedidos ordenados.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= CÓMO FUNCIONA ================= -->
+    <section id="como-funciona" class="tint">
+      <div class="wrap">
+        <div class="head center reveal">
+          <span class="kicker">Cómo funciona</span>
+          <h2>Del celular al mostrador en cuatro pasos</h2>
+          <p>Seguís tu pedido en tiempo real y te avisamos en cada cambio.</p>
+        </div>
+        <div class="flow">
+          <div class="card reveal">
+            <span class="status st-1">Pendiente</span>
+            <h3>Elegí y pedí</h3>
+            <p>Agregá productos al carrito, elegí si pagás con MercadoPago o en efectivo, y confirmá.</p>
+          </div>
+          <div class="card reveal">
+            <span class="status st-2">En preparación</span>
+            <h3>El kiosco lo prepara</h3>
+            <p>Tu pedido le llega al instante. Te avisamos cuando lo empiezan.</p>
+          </div>
+          <div class="card reveal">
+            <span class="status st-3">¡Listo!</span>
+            <h3>Te llega el aviso</h3>
+            <p>Una notificación te dice que ya podés pasar a buscarlo.</p>
+          </div>
+          <div class="card reveal">
+            <span class="status st-4">Entregado</span>
+            <h3>Retirás sin fila</h3>
+            <p>Decís el código de tu pedido y listo. A disfrutar el recreo.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FUNCIONES ================= -->
+    <section id="funciones">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="kicker">Funciones</span>
+          <h2>Todo el kiosco, en tu bolsillo</h2>
+          <p>Pensada para quienes compran y para quienes atienden.</p>
+        </div>
+        <div class="bento">
+          <div class="card wide feature-dark reveal">
+            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17v4M17 19h4"/></svg></div>
+            <h3>Asistente con inteligencia artificial</h3>
+            <p>Pedile cosas como le hablarías a una persona: busca productos, arma tu carrito y te dice cómo va tu pedido.</p>
+            <div class="chat" role="img" aria-label="Ejemplo: pedís agregar dos alfajores al carrito y el asistente confirma que los agregó">
+              <span class="me" aria-hidden="true">Agregá dos alfajores al carrito</span>
+              <span aria-hidden="true">Listo, agregué 2 alfajores triples. Total: $1.900</span>
+            </div>
+          </div>
+          <div class="card wide reveal">
+            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg></div>
+            <h3>Notificaciones al instante</h3>
+            <p>Te avisamos cuando tu pedido pasa a preparación, cuando está listo o si se cancela, aunque tengas la app cerrada. Y al kiosco le avisamos de cada pedido nuevo.</p>
+          </div>
+          <div class="card reveal">
+            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h12"/></svg></div>
+            <h3>Menú con stock real</h3>
+            <p>Fotos, precios y categorías. Sabés qué queda antes de pedir.</p>
+          </div>
+          <div class="card reveal">
+            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+            <h3>Pedidos en tiempo real</h3>
+            <p>El estado se actualiza solo, sin recargar la pantalla.</p>
+          </div>
+          <div class="card reveal">
+            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+            <h3>Segura</h3>
+            <p>Cada persona ve solo lo suyo, y los precios y el stock los controla el servidor.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PARA QUIÉN ES ================= -->
+    <section class="tint" aria-labelledby="roles-titulo">
+      <div class="wrap">
+        <div class="head center reveal">
+          <span class="kicker">Para quién es</span>
+          <h2 id="roles-titulo">Una app, dos experiencias</h2>
+          <p>Alumnos, docentes y personal de la escuela piden. El kiosco administra.</p>
+        </div>
+        <div class="roles">
+          <div class="card reveal">
+            <div class="role-head"><span class="emoji" aria-hidden="true">🎒</span><h3>Si comprás</h3></div>
+            <ul class="check">
+              <li>Buscá en el menú y filtrá por categoría</li>
+              <li>Armá tu pedido y elegí cómo pagás</li>
+              <li>Seguí el estado y cancelá si todavía no empezó</li>
+              <li>Personalizá tu perfil, tu foto y el tema</li>
+            </ul>
+          </div>
+          <div class="card reveal">
+            <div class="role-head"><span class="emoji" aria-hidden="true">🧑‍🍳</span><h3>Si atendés el kiosco</h3></div>
+            <ul class="check">
+              <li>Cargá productos con foto, precio y stock</li>
+              <li>Recibí pedidos al instante y cambiá su estado</li>
+              <li>Mirá ventas, ticket promedio y lo más vendido</li>
+              <li>Decidí quién más administra el kiosco</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= ACCESIBILIDAD ================= -->
+    <section id="accesibilidad">
+      <div class="wrap a11y">
+        <div class="head reveal" style="margin-bottom:0">
+          <span class="kicker">Accesibilidad</span>
+          <h2>Pensada para todas las personas</h2>
+          <p>Desde el botón ♿ adaptás la app a lo que necesites, con perfiles rápidos por tipo de necesidad. Es compatible con TalkBack y VoiceOver, y te avisa por voz cuando cambia tu pedido.</p>
+        </div>
+        <div class="a11y-grid">
+          <div class="a11y-item reveal"><span class="e" aria-hidden="true">👁️</span><div><b>Baja visión</b><small>Alto contraste, texto grande y negrita</small></div></div>
+          <div class="a11y-item reveal"><span class="e" aria-hidden="true">🎨</span><div><b>Daltonismo</b><small>Colores que se distinguen bien</small></div></div>
+          <div class="a11y-item reveal"><span class="e" aria-hidden="true">✋</span><div><b>Motricidad</b><small>Botones más grandes</small></div></div>
+          <div class="a11y-item reveal"><span class="e" aria-hidden="true">🌀</span><div><b>Movimiento</b><small>Sin animaciones que mareen</small></div></div>
+          <div class="a11y-item reveal"><span class="e" aria-hidden="true">📖</span><div><b>Lectura</b><small>Botones con nombre y avisos largos</small></div></div>
+          <div class="a11y-item reveal"><span class="e" aria-hidden="true">🔊</span><div><b>Lector de pantalla</b><small>Todo se puede escuchar</small></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= INSTALAR ================= -->
+    <section id="instalar" class="tint">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="kicker">Instalación</span>
+          <h2>Instalala en un minuto</h2>
+          <p>EatsApp todavía no está en Play Store: se instala con un archivo APK.</p>
+        </div>
+        <div class="install">
+          <ol class="steps">
+            <li><div><strong>Descargá el APK</strong><span>Tocá “Descargar APK” desde el celular. Si el navegador avisa que el archivo puede ser dañino, elegí “Descargar de todas formas”: es la advertencia normal para apps que no vienen de Play Store.</span></div></li>
+            <li><div><strong>Abrí el archivo</strong><span>Desde la notificación de descarga o desde la carpeta <em>Descargas</em>, tocá <em>EatsApp.apk</em>.</span></div></li>
+            <li><div><strong>Permití la instalación</strong><span>La primera vez, Android pide habilitar “Instalar apps desconocidas” para el navegador o el gestor de archivos. Activalo y volvé atrás.</span></div></li>
+            <li><div><strong>Instalá y abrí</strong><span>Tocá “Instalar”. Cuando termine, abrí EatsApp y creá tu cuenta.</span></div></li>
+          </ol>
+          <div class="card download reveal">
+            <img src="logo.png" alt="" width="96" height="96">
+            <h3>EatsApp para Android</h3>
+            <p>Gratis · Archivo APK</p>
+            <a class="btn btn-gold" href="https://github.com/ayluup/eatsapp/releases/latest/download/EatsApp.apk" download>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M5 21h14"/></svg>
+              Descargar APK
+            </a>
+            <ul class="req" aria-label="Requisitos">
+              <li>Android 7.0 o superior</li>
+              <li>Conexión a internet</li>
+              <li>Una cuenta de email o de Google</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PRIMEROS PASOS ================= -->
+    <section id="como-usar">
+      <div class="wrap">
+        <div class="head center reveal">
+          <span class="kicker">Primeros pasos</span>
+          <h2>Cómo empezar a usarla</h2>
+        </div>
+        <div class="guide">
+          <div class="card reveal">
+            <h3>Creá tu cuenta</h3>
+            <ol>
+              <li>Abrí la app y tocá <strong>“Registrate”</strong>.</li>
+              <li>Ingresá tu email y una contraseña de 6 caracteres o más.</li>
+              <li>Confirmá la cuenta desde el email que te llega.</li>
+              <li>O tocá <strong>“Continuar con Google”</strong> y listo.</li>
+            </ol>
+          </div>
+          <div class="card reveal">
+            <h3>Iniciá sesión</h3>
+            <ol>
+              <li>Entrá con tu email y contraseña, o con Google.</li>
+              <li>La sesión queda abierta: no tenés que volver a entrar cada vez.</li>
+              <li>¿Olvidaste la contraseña? Tocá <strong>“¿Olvidaste tu contraseña?”</strong> y seguí el link del email.</li>
+            </ol>
+          </div>
+          <div class="card reveal">
+            <h3>Hacé tu primer pedido</h3>
+            <ol>
+              <li>En el <strong>Menú</strong>, tocá <strong>+</strong> en lo que quieras.</li>
+              <li>Abrí el <strong>Carrito</strong> y confirmá.</li>
+              <li>Seguilo en <strong>Mis pedidos</strong> y retiralo cuando diga <em>¡Listo!</em></li>
+              <li>Aceptá las notificaciones para enterarte sin abrir la app.</li>
+            </ol>
+          </div>
+        </div>
+        <div class="note reveal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+          <div><strong>Para la evaluación:</strong> cualquiera puede crear una cuenta de alumno. Las cuentas de prueba con rol de <strong>administrador</strong> se entregan en privado al docente.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PREGUNTAS ================= -->
+    <section id="preguntas" class="tint">
+      <div class="wrap">
+        <div class="head center reveal">
+          <span class="kicker">Preguntas frecuentes</span>
+          <h2>¿Dudas?</h2>
+        </div>
+        <div class="faq">
+          <details>
+            <summary>¿Es seguro instalar una app que no está en Play Store?</summary>
+            <p>Sí. Android muestra una advertencia con cualquier APK que no venga de la tienda oficial. EatsApp se genera a partir del código público del proyecto en GitHub y solo pide permiso para notificaciones, y para la cámara y las fotos cuando querés subir una imagen.</p>
+          </details>
+          <details>
+            <summary>¿Cómo se paga?</summary>
+            <p>Al confirmar el pedido elegís si vas a pagar con MercadoPago o en efectivo, así el kiosco ya lo sabe cuando lo prepara.</p>
+          </details>
+          <details>
+            <summary>¿Puedo cancelar un pedido?</summary>
+            <p>Sí, mientras esté <em>Pendiente</em>. Cuando el kiosco empieza a prepararlo ya no se puede cancelar desde la app. Si nadie lo atiende en 2 horas, se cancela solo.</p>
+          </details>
+          <details>
+            <summary>¿Qué pasa si un producto se agota mientras pido?</summary>
+            <p>El stock se controla en el momento de confirmar. Si ya no alcanza, la app te avisa cuántas unidades quedan y el pedido no se crea.</p>
+          </details>
+          <details>
+            <summary>¿Funciona en iPhone?</summary>
+            <p>La app está hecha con tecnología multiplataforma, pero por ahora se distribuye solo para Android, con el APK.</p>
+          </details>
+          <details>
+            <summary>No me llegan las notificaciones</summary>
+            <p>Revisá que hayas aceptado el permiso al abrir la app. Si no, activalo en Ajustes → Apps → EatsApp → Notificaciones.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TECNOLOGÍAS ================= -->
+    <section aria-labelledby="tec">
+      <div class="wrap">
+        <div class="head center reveal">
+          <span class="kicker">Cómo está hecha</span>
+          <h2 id="tec">Tecnologías</h2>
+          <p>App multiplataforma con un backend en la nube: funciona sin depender de ninguna computadora.</p>
+        </div>
+        <ul class="tech">
+          <li>React Native</li>
+          <li>Expo</li>
+          <li>TypeScript</li>
+          <li>Supabase</li>
+          <li>PostgreSQL</li>
+          <li>Realtime</li>
+          <li>Notificaciones push</li>
+          <li>Google Gemini</li>
+          <li>EAS Build</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ================= CIERRE ================= -->
+    <section class="final" aria-labelledby="final-titulo">
+      <div class="wrap">
+        <h2 id="final-titulo">El próximo recreo, sin fila.</h2>
+        <p>Descargá EatsApp, creá tu cuenta y hacé tu primer pedido en menos de un minuto.</p>
+        <div class="actions">
+          <a class="btn btn-gold" href="https://github.com/ayluup/eatsapp/releases/latest/download/EatsApp.apk" download>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M5 21h14"/></svg>
+            Descargar para Android
+          </a>
+          <a class="btn btn-outline" href="https://github.com/ayluup/eatsapp">Ver el código</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <a class="brand" href="#"><img src="logo.png" alt="" width="30" height="30"> EatsApp</a>
+      <span>Kiosco EPET 12 · Construcción de Software, 6.º año, 2026</span>
+      <a class="gh" href="https://github.com/ayluup/eatsapp">GitHub</a>
+    </div>
+  </footer>
+
+  <script>
+    // Aparición suave de las secciones al hacer scroll. Con "reducir movimiento"
+    // o sin soporte, todo se muestra directamente.
+    const items = document.querySelectorAll(".reveal");
+    if (!matchMedia("(prefers-reduced-motion: reduce)").matches && "IntersectionObserver" in window) {
+      const io = new IntersectionObserver((entries) => {
+        for (const e of entries) if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+      }, { threshold: 0.12 });
+      items.forEach((el) => io.observe(el));
+    } else {
+      items.forEach((el) => el.classList.add("in"));
+    }
+  </script>
+</body>
+</html>
