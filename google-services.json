@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "259929636591",
+    "project_id": "eatsapp12",
+    "storage_bucket": "eatsapp12.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:259929636591:android:eaf71cdb7b9832f7b3a51a",
+        "android_client_info": {
+          "package_name": "com.aylu18.eatsapp12"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyApiOcn6NDUvFiUf_-jx46yMwsu_clJbuE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
