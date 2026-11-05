@@ -1,28 +1,27 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "expo-router";
-import { useSafeRouter } from "../../hooks/use-safe-router";
 import { useCallback, useLayoutEffect, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AssistantButton } from "../../components/assistant-button";
-import { AccessibilityToggleButton } from "../../components/accessibility-toggle-button";
-import { ThemeToggleButton } from "../../components/theme-toggle-button";
 import { useAuth } from "../../context/AuthContext";
+import { useSafeRouter } from "../../hooks/use-safe-router";
 import { supabase } from "../../services/supabase";
 
 import {
   Animated,
   FlatList,
   Image,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { showAlert } from "../../components/app-alert";
 import { ThemeColors } from "../../constants/theme";
 import { useAppTheme } from "../../context/ThemeContext";
-import { useThemedStyles } from "../../hooks/use-themed-styles";
 import { useTableRealtime } from "../../hooks/use-orders-realtime";
-import { showAlert } from "../../components/app-alert";
+import { useThemedStyles } from "../../hooks/use-themed-styles";
 
 export type Menu = {
   id: number;
@@ -61,6 +60,10 @@ export default function AdminMenuScreen() {
   const [menus, setMenus] = useState<Menu[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("Todos");
+  const [previewImage, setPreviewImage] = useState<{
+    uri: string;
+    name: string;
+  } | null>(null);
 
   const router = useSafeRouter();
   const insets = useSafeAreaInsets();
@@ -197,10 +200,7 @@ export default function AdminMenuScreen() {
         </View>
       </View>
 
-      {/* Asistente, tema y accesibilidad debajo del título */}
-      <View style={styles.toolsRow}>
-        <AccessibilityToggleButton />
-        <ThemeToggleButton />
+      <View style={styles.assistantBubbleWrap}>
         <AssistantButton href="/(admin)/asistente" />
       </View>
 
@@ -252,24 +252,26 @@ export default function AdminMenuScreen() {
         renderItem={({ item }) => {
           const hasImage = !!item.imagen_url;
           return (
-            <Pressable
-              style={({ pressed }) => [
-                styles.card,
-                pressed && styles.cardPressed,
-              ]}
-              onPress={() => router.push(`/editar?id=${item.id}`)}
-              accessibilityRole="button"
-              accessibilityLabel={`${item.nombre}, ${formatPrice(item.precio)}`}
-              accessibilityHint="Abre la edición del producto"
-            >
+            <View style={styles.card}>
               {hasImage && (
                 <View style={styles.imageContainer}>
-                  <Image
-                    source={{ uri: item.imagen_url! }}
-                    style={styles.productImage}
-                    accessible
-                    accessibilityLabel={`Foto de ${item.nombre}`}
-                  />
+                  <Pressable
+                    onPress={() =>
+                      setPreviewImage({
+                        uri: item.imagen_url!,
+                        name: item.nombre,
+                      })
+                    }
+                    accessibilityRole="button"
+                    accessibilityLabel={`Ampliar foto de ${item.nombre}`}
+                  >
+                    <Image
+                      source={{ uri: item.imagen_url! }}
+                      style={styles.productImage}
+                      accessible
+                      accessibilityLabel={`Foto de ${item.nombre}`}
+                    />
+                  </Pressable>
                 </View>
               )}
               <View style={styles.info}>
@@ -328,25 +330,39 @@ export default function AdminMenuScreen() {
                   </Pressable>
                 </View>
               </View>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.deleteBtn,
-                  pressed && styles.deleteBtnPressed,
-                ]}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleDelete(item.id);
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={`Eliminar ${item.nombre}`}
-              >
-                <Ionicons
-                  name="trash-outline"
-                  size={22}
-                  color={c.textSecondary}
-                />
-              </Pressable>
-            </Pressable>
+              <View style={styles.cardActions}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.deleteBtn,
+                    pressed && styles.deleteBtnPressed,
+                  ]}
+                  onPress={() => router.push(`/editar?id=${item.id}`)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Editar ${item.nombre}`}
+                >
+                  <Ionicons
+                    name="create-outline"
+                    size={22}
+                    color={c.textSecondary}
+                  />
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.deleteBtn,
+                    pressed && styles.deleteBtnPressed,
+                  ]}
+                  onPress={() => handleDelete(item.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Eliminar ${item.nombre}`}
+                >
+                  <Ionicons
+                    name="trash-outline"
+                    size={22}
+                    color={c.textSecondary}
+                  />
+                </Pressable>
+              </View>
+            </View>
           );
         }}
         ListEmptyComponent={
@@ -375,45 +391,84 @@ export default function AdminMenuScreen() {
       />
 
       <View style={[styles.floatingNavWrapper, { bottom: insets.bottom + 16 }]}>
-        <View style={styles.floatingNav}>
-          <Pressable style={styles.navItemActive}>
-            <Ionicons name="restaurant" size={24} color={c.accent} />
-            <Text style={styles.navTextActive} numberOfLines={1}>
-              Menú
-            </Text>
-          </Pressable>
-          <Pressable
-            style={styles.navItemInactive}
-            onPress={() => router.push("/agregar")}
-          >
-            <Ionicons name="add-circle" size={24} color={c.textMuted} />
-            <Text style={styles.navTextInactive} numberOfLines={1}>
-              Agregar
-            </Text>
-          </Pressable>
-          <Pressable
-            style={styles.navItemInactive}
-            onPress={() => router.push("/(admin)/pedidos")}
-          >
-            <Ionicons name="list" size={24} color={c.textMuted} />
-            <Text style={styles.navTextInactive} numberOfLines={1}>
-              Pedidos
-            </Text>
-          </Pressable>
-
-          {role === "superadmin" && (
+        <View
+          style={[
+            styles.floatingNav,
+            role === "admin" && styles.floatingNavAdmin,
+          ]}
+        >
+          {role === "superadmin" ? (
             <Pressable
-              style={styles.navItemInactive}
+              style={styles.navItemActive}
               onPress={() => router.push("/(admin)/usuarios")}
             >
-              <Ionicons name="people-outline" size={24} color={c.textMuted} />
-              <Text style={styles.navTextInactive} numberOfLines={1}>
+              <Ionicons name="people" size={24} color={c.accent} />
+              <Text style={styles.navTextActive} numberOfLines={1}>
                 Usuarios
               </Text>
             </Pressable>
+          ) : (
+            <>
+              <Pressable
+                style={[
+                  styles.navItemActive,
+                  role === "admin" && styles.navItemActiveAdmin,
+                ]}
+              >
+                <Ionicons name="restaurant" size={24} color={c.accent} />
+                <Text
+                  style={[
+                    styles.navTextActive,
+                    role === "admin" && styles.navTextActiveAdmin,
+                  ]}
+                  numberOfLines={1}
+                >
+                  Menú
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.navItemInactive,
+                  role === "admin" && styles.navItemInactiveAdmin,
+                ]}
+                onPress={() => router.push("/agregar")}
+              >
+                <Ionicons name="add-circle" size={24} color={c.textMuted} />
+                <Text
+                  style={[
+                    styles.navTextInactive,
+                    role === "admin" && styles.navTextInactiveAdmin,
+                  ]}
+                  numberOfLines={1}
+                >
+                  Agregar
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.navItemInactive,
+                  role === "admin" && styles.navItemInactiveAdmin,
+                ]}
+                onPress={() => router.push("/(admin)/pedidos")}
+              >
+                <Ionicons name="list" size={24} color={c.textMuted} />
+                <Text
+                  style={[
+                    styles.navTextInactive,
+                    role === "admin" && styles.navTextInactiveAdmin,
+                  ]}
+                  numberOfLines={1}
+                >
+                  Pedidos
+                </Text>
+              </Pressable>
+            </>
           )}
           <Pressable
-            style={styles.navItemInactive}
+            style={[
+              styles.navItemInactive,
+              role === "admin" && styles.navItemInactiveAdmin,
+            ]}
             onPress={() => router.push("/(admin)/perfil")}
           >
             <Ionicons
@@ -421,12 +476,52 @@ export default function AdminMenuScreen() {
               size={24}
               color={c.textMuted}
             />
-            <Text style={styles.navTextInactive} numberOfLines={1}>
+            <Text
+              style={[
+                styles.navTextInactive,
+                role === "admin" && styles.navTextInactiveAdmin,
+              ]}
+              numberOfLines={1}
+            >
               Perfil
             </Text>
           </Pressable>
         </View>
       </View>
+
+      <Modal
+        visible={previewImage !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewImage(null)}
+      >
+        <View style={styles.imageModal}>
+          <Pressable
+            style={styles.imageModalBackdrop}
+            onPress={() => setPreviewImage(null)}
+            accessibilityLabel="Cerrar imagen ampliada"
+          />
+          {previewImage && (
+            <View style={styles.imageModalContent}>
+              <Pressable
+                style={styles.imageModalClose}
+                onPress={() => setPreviewImage(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar imagen ampliada"
+              >
+                <Ionicons name="close" size={24} color="#fff" />
+              </Pressable>
+              <Image
+                source={{ uri: previewImage.uri }}
+                style={styles.imagePreview}
+                resizeMode="contain"
+                accessible
+                accessibilityLabel={`Foto ampliada de ${previewImage.name}`}
+              />
+            </View>
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -503,7 +598,7 @@ const createStyles = (c: ThemeColors) =>
       marginBottom: 4,
     },
     title: {
-      fontSize: 26,
+      fontSize: 28,
       fontWeight: "800",
       color: c.text,
       letterSpacing: -0.5,
@@ -526,14 +621,21 @@ const createStyles = (c: ThemeColors) =>
       paddingBottom: 12,
       zIndex: 1,
     },
+
+    assistantBubbleWrap: {
+      position: "absolute",
+      right: 24,
+      bottom: 110,
+      zIndex: 20,
+    },
     logoutBtnPressed: { opacity: 0.7, transform: [{ scale: 0.95 }] },
 
     categoriesRow: {
       flexDirection: "row",
       justifyContent: "space-between",
       paddingHorizontal: 20,
-      paddingVertical: 12,
-      gap: 6,
+      paddingVertical: 10,
+      gap: 5,
       zIndex: 1,
     },
     categoryBtn: {
@@ -581,12 +683,42 @@ const createStyles = (c: ThemeColors) =>
     },
     cardPressed: { transform: [{ scale: 0.98 }], opacity: 0.95 },
 
-    imageContainer: { marginRight: 12 },
+    imageContainer: { marginRight: 10 },
     productImage: {
-      width: 64,
-      height: 64,
+      width: 80,
+      height: 80,
       borderRadius: 16,
       backgroundColor: c.surfaceMuted,
+    },
+    imageModal: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    imageModalBackdrop: {
+      ...StyleSheet.absoluteFill,
+      backgroundColor: "rgba(0, 0, 0, 0.88)",
+    },
+    imageModalContent: {
+      width: "100%",
+      height: "82%",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    imageModalClose: {
+      alignSelf: "flex-end",
+      marginRight: 20,
+      marginBottom: 12,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: "rgba(255, 255, 255, 0.18)",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    imagePreview: {
+      width: "100%",
+      flex: 1,
     },
 
     info: { flex: 1, minWidth: 0, paddingRight: 6 },
@@ -607,15 +739,15 @@ const createStyles = (c: ThemeColors) =>
     badgesRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
-      flexWrap: "wrap",
+      gap: 6,
+      flexWrap: "nowrap",
     },
     catBadge: {
       fontSize: 11,
       fontWeight: "600",
       color: c.textBody,
       backgroundColor: c.surfaceMuted,
-      paddingHorizontal: 8,
+      paddingHorizontal: 7,
       paddingVertical: 3,
       borderRadius: 6,
     },
@@ -634,7 +766,14 @@ const createStyles = (c: ThemeColors) =>
     inStockText: { color: c.successStrong },
     outOfStockText: { color: c.dangerStrong },
 
-    deleteBtn: { padding: 8, borderRadius: 10 },
+    cardActions: { gap: 4 },
+    deleteBtn: {
+      width: 40,
+      height: 40,
+      justifyContent: "center",
+      alignItems: "center",
+      borderRadius: 10,
+    },
     deleteBtnPressed: {
       backgroundColor: c.surfaceMuted,
       transform: [{ scale: 0.9 }],
@@ -672,19 +811,17 @@ const createStyles = (c: ThemeColors) =>
 
     floatingNavWrapper: {
       position: "absolute",
-      left: 16,
-      right: 16,
+      bottom: 32,
+      left: 24,
+      right: 24,
       zIndex: 10,
       alignItems: "center",
     },
-    // Ocupa todo el ancho disponible (hasta 480) para que entren los 5 botones
     floatingNav: {
-      width: "100%",
-      maxWidth: 480,
       flexDirection: "row",
       backgroundColor: c.surface,
       borderRadius: 32,
-      padding: 6,
+      padding: 8,
       shadowColor: c.shadow,
       shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.12,
@@ -693,24 +830,33 @@ const createStyles = (c: ThemeColors) =>
       borderWidth: 1,
       borderColor: c.borderSoft,
     },
+    floatingNavAdmin: {
+      width: "98%",
+      maxWidth: 480,
+      borderRadius: 28,
+      padding: 8,
+    },
     navItemActive: {
       flex: 1,
-      minWidth: 0,
       alignItems: "center",
       justifyContent: "center",
       gap: 4,
-      paddingVertical: 10,
+      paddingVertical: 12,
       borderRadius: 24,
     },
     navItemInactive: {
       flex: 1,
-      minWidth: 0,
       alignItems: "center",
       justifyContent: "center",
       gap: 4,
-      paddingVertical: 10,
+      paddingVertical: 12,
       borderRadius: 24,
     },
+
+    navItemActiveAdmin: { gap: 3, paddingVertical: 8, borderRadius: 22 },
+    navItemInactiveAdmin: { gap: 3, paddingVertical: 8, borderRadius: 22 },
     navTextActive: { fontSize: 11, fontWeight: "700", color: c.accent },
     navTextInactive: { fontSize: 11, fontWeight: "600", color: c.textMuted },
+    navTextActiveAdmin: { fontSize: 10 },
+    navTextInactiveAdmin: { fontSize: 10 },
   });

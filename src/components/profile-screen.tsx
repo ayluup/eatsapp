@@ -410,7 +410,11 @@ export function ProfileScreen() {
         <View style={styles.topBar}>
           <Pressable
             style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-            onPress={() => router.back()}
+            onPress={() =>
+              role === "superadmin"
+                ? router.replace("/(admin)/usuarios")
+                : router.back()
+            }
             accessibilityLabel="Volver"
           >
             <Ionicons name="arrow-back" size={22} color={c.text} />

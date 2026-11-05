@@ -62,27 +62,34 @@ npx eas-cli@latest build -p android --profile preview
 ## Cómo usarla
 
 ### Crear una cuenta e iniciar sesión
-1. En la pantalla de inicio tocá **"Registrate"**, ingresá tu email y una contraseña de al menos 6 caracteres, y confirmá el email que te llega.
+
+1. En la pantalla de inicio tocá **"Crear cuenta"**, ingresá tu email y una contraseña de al menos 6 caracteres, y confirmá el email que te llega.
 2. También podés entrar con **"Continuar con Google"**.
 3. Si olvidaste la contraseña, tocá **"¿Olvidaste tu contraseña?"**. Te llega un email con un link que abre la app para elegir una nueva.
 
 La sesión queda iniciada entre usos hasta que toques **Salir**.
 
 ### Como alumno
+
 - **Menú:** buscá productos o filtrá por categoría. Tocá **+** para agregar al carrito.
 - **Carrito:** ajustá las cantidades, elegí el método de pago (MercadoPago o efectivo) y confirmá.
-- **Mis pedidos:** seguí el estado (*Pendiente → En preparación → ¡Listo! → Entregado*). Te llega una notificación cuando cambia. Podés cancelar un pedido mientras está pendiente.
-- **Asistente ✨:** pedile cosas en lenguaje natural, por ejemplo *"¿qué bebidas hay?"* o *"¿cómo va mi pedido?"*.
-- **Perfil:** cambiá tu nombre, tu foto, tu contraseña, el tema y la accesibilidad.
+- **Mis pedidos:** seguí el estado (_Pendiente → En preparación → ¡Listo! → Entregado_). Te llega una notificación cuando cambia. Podés cancelar un pedido mientras está pendiente. Los pedidos listos o entregados se pueden ocultar de tu lista; los cancelados se pueden eliminar definitivamente.
+- **Asistente ✨:** pedile cosas en lenguaje natural, por ejemplo _"¿qué hay sin TACC?"_ o _"¿cómo va mi pedido?"_.
+- **Perfil:** cambiá tu nombre, tu foto, tu contraseña, el tema y las notificaciones.
 
 ### Como administrador del kiosco
+
 - **Menú:** agregá, editá o eliminá productos con foto, precio, categoría y stock, y marcalos como disponibles o agotados.
-- **Pedidos:** los pedidos nuevos aparecen solos y te llega una notificación. Cambiá su estado con un toque.
-- **Historial y ventas:** ventas de hoy y de los últimos 7, 30 o 90 días, productos más vendidos y ticket promedio.
+- **Pedidos:** los pedidos nuevos aparecen solos y te llega una notificación. Cambiá el estado con un toque; cancelar pide confirmación.
+- **Historial y ventas:** ventas por día, semana o mes, productos más vendidos y ticket promedio. También podés eliminar definitivamente los pedidos cancelados.
+
+> Al eliminar definitivamente un pedido cancelado, desaparece del historial y deja de incluirse en las métricas de ventas.
 - **Usuarios** (solo superadmin): asigná o quitá el rol de admin y eliminá cuentas de alumnos.
 
 ### Accesibilidad ♿
+
 El botón ♿ (arriba, en el menú) abre el panel de accesibilidad. Desde ahí se pueden activar:
+
 - alto contraste
 - tamaño de texto (normal, grande o muy grande)
 - texto en negrita
@@ -98,39 +105,38 @@ También tiene perfiles rápidos (baja visión, daltonismo, motricidad, sensibil
 
 ## Roles
 
-| Rol | Cómo se obtiene | Qué puede hacer |
-|---|---|---|
-| **student** | Todos al registrarse | Ver el menú, hacer y cancelar sus pedidos, usar el asistente y editar su perfil |
-| **admin** | Lo asigna el superadmin desde la app | Todo lo del kiosco: menú, stock, pedidos e historial de ventas |
-| **superadmin** | Solo desde el SQL Editor de Supabase | Todo lo del admin, más la gestión de usuarios y roles |
+| Rol            | Cómo se obtiene                      | Qué puede hacer                                                                 |
+| -------------- | ------------------------------------ | ------------------------------------------------------------------------------- |
+| **student**    | Todos al registrarse                 | Ver el menú, hacer y cancelar sus pedidos, ocultar los listos o entregados, eliminar sus pedidos cancelados, usar el asistente y editar su perfil |
+| **admin**      | Lo asigna el superadmin desde la app | Todo lo del kiosco: menú, stock, pedidos e historial de ventas                  |
+| **superadmin** | Solo desde el SQL Editor de Supabase | Todo lo del admin, más la gestión de usuarios y roles                           |
 
 Los permisos **no dependen de la app**: los controla la base de datos con **Row Level Security**. Un alumno no puede modificar el menú ni ver pedidos ajenos, aunque intente hacerlo llamando directamente a la API.
 
 ### Usuarios de prueba
+
 Las credenciales de prueba (un admin y un alumno) **se entregan en privado al docente** y no se publican en este repositorio. Para probar como alumno también podés crear una cuenta nueva.
 
 ---
 
 ## Tecnologías
 
-| Capa | Tecnología |
-|---|---|
-| App (Android, iOS y web) | **React Native** + **Expo SDK 58**, **Expo Router** (navegación por archivos) y **TypeScript** |
-| Backend | **Supabase**: PostgreSQL, Auth, Storage, Realtime y Edge Functions |
-| Autenticación | Supabase Auth (JWT) con email y contraseña, y **Google OAuth**. La sesión queda guardada en el dispositivo y el token se renueva solo |
-| Base de datos | PostgreSQL con **RLS**, triggers y funciones `security definer` |
-| Tiempo real | Supabase Realtime: los pedidos se actualizan sin recargar |
-| Notificaciones push | `expo-notifications` + **Expo Push**, enviadas desde la base con `pg_net` |
-| Segundo plano | **pg_cron**: tareas programadas dentro de la base |
-| Archivos | Supabase Storage: fotos de perfil y de productos |
-| Asistente de IA | Edge Function `ai-agent` + **Google Gemini** |
-| Build y distribución | **EAS Build** (APK) |
+| Capa                     | Tecnología                                                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| App (Android, iOS y web) | **React Native** + **Expo SDK 58**, **Expo Router** (navegación por archivos) y **TypeScript**                      |
+| Backend                  | **Supabase**: PostgreSQL, Auth, Storage, Realtime y Edge Functions                                                  |
+| Autenticación            | Supabase Auth (JWT) con email y contraseña, y **Google OAuth**. La sesión se guarda cifrada con `expo-secure-store` |
+| Base de datos            | PostgreSQL con **RLS**, triggers y funciones `security definer`                                                     |
+| Tiempo real              | Supabase Realtime: los pedidos se actualizan sin recargar                                                           |
+| Notificaciones push      | `expo-notifications` + **Expo Push**, enviadas desde la base con `pg_net`                                           |
+| Segundo plano            | **pg_cron**: tareas programadas dentro de la base                                                                   |
+| Archivos                 | Supabase Storage: fotos de perfil y de productos                                                                    |
+| Asistente de IA          | Edge Function `ai-agent` + **Google Gemini**                                                                        |
+| Build y distribución     | **EAS Build** (APK)                                                                                                 |
 
 ---
 
 ## Arquitectura
-
-> La explicación completa de cada funcionalidad, la base de datos y la seguridad está en **[ARQUITECTURA.md](ARQUITECTURA.md)**.
 
 ```
  ┌──────────────┐        HTTPS + JWT         ┌──────────────────────────────┐
@@ -176,18 +182,20 @@ supabase/
 
 Tablas principales (esquema `public`):
 
-| Tabla | Contenido |
-|---|---|
-| `profiles` | Un perfil por usuario: rol, nombre, foto y preferencia de notificaciones |
-| `menus` | Productos: nombre, descripción, precio, categoría, imagen, disponibilidad y stock |
-| `pedidos` | Pedidos: código, productos (JSON), total, método de pago, estado y usuario |
-| `push_tokens` | Tokens de Expo Push de cada dispositivo |
-| `ventas_diarias` | Resumen de ventas por día (lo genera pg_cron) |
+| Tabla            | Contenido                                                                         |
+| ---------------- | --------------------------------------------------------------------------------- |
+| `profiles`       | Un perfil por usuario: rol, nombre, foto y preferencia de notificaciones          |
+| `menus`          | Productos: nombre, descripción, precio, categoría, imagen, disponibilidad y stock |
+| `pedidos`        | Pedidos: código, productos (JSON), total, método de pago, estado y usuario        |
+| `push_tokens`    | Tokens de Expo Push de cada dispositivo                                           |
+| `ventas_diarias` | Resumen de ventas por día (lo genera pg_cron)                                     |
 
 ### Recrear la base en un proyecto nuevo de Supabase
+
 Ejecutar los archivos de `supabase/migrations/` **en orden** desde el SQL Editor. Cada archivo se puede correr más de una vez.
 
 Además hay que:
+
 1. Habilitar las extensiones `pg_cron` y `pg_net` (Database → Extensions).
 2. Activar el proveedor **Google** en Authentication → Providers.
 3. Agregar `eatsapp12://` a las URLs de redirección (Authentication → URL Configuration).
@@ -198,20 +206,21 @@ Además hay que:
    ```
 
 ### Acceso para la evaluación
+
 El acceso al panel de Supabase (base de datos, usuarios y logs) se comparte **en privado con el docente**, invitándolo como miembro del proyecto.
 
 ---
 
 ## Seguridad
 
-- Ninguna clave secreta está en el código ni en la app. La app solo tiene la *anon key* pública de Supabase, que no da acceso a nada por sí sola: todo pasa por RLS.
+- Ninguna clave secreta está en el código ni en la app. La app solo tiene la _anon key_ pública de Supabase, que no da acceso a nada por sí sola: todo pasa por RLS.
 - La clave de Gemini está como secreto de la Edge Function, y la de Firebase (FCM) solo en EAS. Las dos están excluidas del repo en `.gitignore`.
 - Las contraseñas las maneja Supabase Auth (hash bcrypt). La app nunca las guarda.
-- La sesión (JWT de corta duración más refresh token) queda guardada en el almacenamiento de la app para no tener que volver a iniciar sesión, y se renueva automáticamente mientras la app está abierta.
+- La sesión (JWT con refresh token) se guarda cifrada en el dispositivo con `expo-secure-store`.
 - Validaciones en los dos lados: la app avisa de los datos vacíos o con formato incorrecto, y la base vuelve a validar todo (precios, stock, estados permitidos y permisos).
 
 ---
 
-## Autoría
+## Autora
 
-[@ayluup](https://github.com/ayluup). Construcción de Software, 6.º año, 2026.
+Aylén ([@ayluup](https://github.com/ayluup)). Construcción de Software, 6.º año, 2026.

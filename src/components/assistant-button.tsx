@@ -1,9 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Href } from "expo-router";
-import { useSafeRouter } from "../hooks/use-safe-router";
 import { Pressable, StyleSheet, Text } from "react-native";
 import { ThemeColors } from "../constants/theme";
 import { useAppTheme } from "../context/ThemeContext";
+import { useSafeRouter } from "../hooks/use-safe-router";
 import { useThemedStyles } from "../hooks/use-themed-styles";
 
 // Botón del header que abre el asistente de IA (va al lado del de salir)
@@ -14,7 +14,11 @@ export function AssistantButton({ href }: { href: Href }) {
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.btn,
+        a11y.showLabels && styles.btnWithLabel,
+        pressed && styles.pressed,
+      ]}
       onPress={() => router.push(href)}
       accessibilityLabel="Abrir asistente"
     >
@@ -24,17 +28,31 @@ export function AssistantButton({ href }: { href: Href }) {
   );
 }
 
-const createStyles = (c: ThemeColors) => StyleSheet.create({
-  btn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    padding: 10,
-    borderRadius: 12,
-    backgroundColor: c.accentSoft,
-    borderWidth: 1,
-    borderColor: c.accentSoft,
-  },
-  label: { fontSize: 13, fontWeight: "700", color: c.accentStrong },
-  pressed: { opacity: 0.7, transform: [{ scale: 0.95 }] },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    btn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      width: 58,
+      height: 58,
+      paddingHorizontal: 12,
+      borderRadius: 29,
+      backgroundColor: c.accentSoft,
+      borderWidth: 1,
+      borderColor: c.accentSoft,
+      shadowColor: c.shadow,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.18,
+      shadowRadius: 16,
+      elevation: 6,
+    },
+    btnWithLabel: {
+      width: "auto",
+      minWidth: 58,
+      paddingHorizontal: 14,
+      borderRadius: 18,
+    },
+    label: { fontSize: 13, fontWeight: "700", color: c.accentStrong },
+    pressed: { opacity: 0.7, transform: [{ scale: 0.96 }] },
+  });

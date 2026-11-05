@@ -43,3 +43,16 @@ export async function hideOrder(id: string) {
   const { error } = await supabase.rpc("ocultar_pedido", { p_id: id });
   if (error) throw new Error(error.message);
 }
+
+// Elimina definitivamente un pedido cancelado propio; RLS valida propietario y estado.
+export async function deleteCancelledOrder(id: string) {
+  const { data, error } = await supabase
+    .from("pedidos")
+    .delete()
+    .eq("id", id)
+    .eq("estado", "cancelled")
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Solo podés eliminar tus pedidos cancelados");
+}

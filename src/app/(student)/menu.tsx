@@ -1,21 +1,20 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
-import { useSafeRouter } from "../../hooks/use-safe-router";
 import { useCallback, useState } from "react";
-import { AssistantButton } from "../../components/assistant-button";
-import { AccessibilityToggleButton } from "../../components/accessibility-toggle-button";
-import { ThemeToggleButton } from "../../components/theme-toggle-button";
-import { useAuth } from "../../context/AuthContext";
-import { useCart } from "../../hooks/useCart";
-import { useTableRealtime } from "../../hooks/use-orders-realtime";
 import { showAlert } from "../../components/app-alert";
+import { AssistantButton } from "../../components/assistant-button";
+import { useAuth } from "../../context/AuthContext";
 import { useAppTheme } from "../../context/ThemeContext";
-import { announce } from "../../utils/announce";
+import { useTableRealtime } from "../../hooks/use-orders-realtime";
+import { useSafeRouter } from "../../hooks/use-safe-router";
+import { useCart } from "../../hooks/useCart";
 import { supabase } from "../../services/supabase";
+import { announce } from "../../utils/announce";
 
 import {
   FlatList,
   Image,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -49,7 +48,12 @@ const LOW_STOCK = 5;
 // Cómo se muestra el stock de un producto: agotado, pocas unidades o disponible
 function stockInfo(item: MenuItem) {
   if (!item.disponible) {
-    return { kind: "out", label: "Agotado", spoken: "agotado", icon: "close-circle" } as const;
+    return {
+      kind: "out",
+      label: "Agotado",
+      spoken: "agotado",
+      icon: "close-circle",
+    } as const;
   }
   if (item.stock != null && item.stock <= LOW_STOCK) {
     const one = item.stock === 1;
@@ -60,7 +64,12 @@ function stockInfo(item: MenuItem) {
       icon: "alert-circle",
     } as const;
   }
-  return { kind: "in", label: "Disponible", spoken: "disponible", icon: "checkmark-circle" } as const;
+  return {
+    kind: "in",
+    label: "Disponible",
+    spoken: "disponible",
+    icon: "checkmark-circle",
+  } as const;
 }
 
 // Trae los productos (null si falló)
@@ -87,6 +96,10 @@ export default function StudentMenuScreen() {
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [search, setSearch] = useState("");
+  const [previewImage, setPreviewImage] = useState<{
+    uri: string;
+    name: string;
+  } | null>(null);
 
   const { addToCart, count: cartCount } = useCart();
   const { signOut } = useAuth();
@@ -156,11 +169,11 @@ export default function StudentMenuScreen() {
     <View style={styles.container}>
       <View style={styles.bgTop} />
       <View style={styles.bgBottom} />
-
-      {/* ✅ HEADER CON LOGOUT POSICIONADO CORRECTAMENTE */}
       <View style={styles.header}>
         <View style={styles.headerTextContainer}>
-          <Text style={styles.title} accessibilityRole="header">Menú del Kiosco</Text>
+          <Text style={styles.title} accessibilityRole="header">
+            Menú del Kiosco
+          </Text>
           <Text style={styles.subtitle}>
             Seleccioná lo que quieras pedir hoy
           </Text>
@@ -184,10 +197,7 @@ export default function StudentMenuScreen() {
         </View>
       </View>
 
-      {/* Asistente, tema y accesibilidad debajo del título */}
-      <View style={styles.toolsRow}>
-        <AccessibilityToggleButton />
-        <ThemeToggleButton />
+      <View style={styles.assistantBubbleWrap}>
         <AssistantButton href="/(student)/asistente" />
       </View>
 
@@ -253,26 +263,31 @@ export default function StudentMenuScreen() {
           const stock = stockInfo(item);
 
           return (
-            <Pressable
+            <View
               style={[
                 styles.card,
                 !hasImage && styles.cardNoImage,
                 isDisabled && styles.cardDisabled,
               ]}
-              onPress={() => handleAddToCart(item)}
-              disabled={isDisabled}
-              accessibilityRole="button"
-              accessibilityLabel={`${item.nombre}, ${formatPrice(item.precio)}, ${stock.spoken}`}
-              accessibilityHint={isDisabled ? undefined : "Agrega el producto al carrito"}
-              accessibilityState={{ disabled: isDisabled }}
             >
               {hasImage && (
-                <Image
-                  source={{ uri: item.imagen_url! }}
-                  style={styles.image}
-                  accessible
-                  accessibilityLabel={`Foto de ${item.nombre}`}
-                />
+                <Pressable
+                  onPress={() =>
+                    setPreviewImage({
+                      uri: item.imagen_url!,
+                      name: item.nombre,
+                    })
+                  }
+                  accessibilityRole="button"
+                  accessibilityLabel={`Ampliar foto de ${item.nombre}`}
+                >
+                  <Image
+                    source={{ uri: item.imagen_url! }}
+                    style={styles.image}
+                    accessible
+                    accessibilityLabel={`Foto de ${item.nombre}`}
+                  />
+                </Pressable>
               )}
 
               <View style={[styles.info, !hasImage && styles.infoFullWidth]}>
@@ -307,11 +322,12 @@ export default function StudentMenuScreen() {
                   onPress={() => handleAddToCart(item)}
                   accessibilityRole="button"
                   accessibilityLabel={`Agregar ${item.nombre} al carrito`}
+                  accessibilityHint={`${formatPrice(item.precio)}. ${stock.spoken}`}
                 >
                   <Ionicons name="add" size={24} color={c.onAccent} />
                 </Pressable>
               )}
-            </Pressable>
+            </View>
           );
         }}
         ListEmptyComponent={
@@ -337,7 +353,9 @@ export default function StudentMenuScreen() {
         <View style={styles.toastContainer}>
           <View style={styles.toast}>
             <Ionicons name="checkmark-circle" size={20} color={c.success} />
-            <Text style={styles.toastText}>&quot;{lastAddedItem}&quot; agregado</Text>
+            <Text style={styles.toastText}>
+              &quot;{lastAddedItem}&quot; agregado
+            </Text>
           </View>
         </View>
       )}
@@ -388,301 +406,375 @@ export default function StudentMenuScreen() {
             style={styles.navItemInactive}
             onPress={() => router.push("/(student)/perfil")}
           >
-            <Ionicons name="person-circle-outline" size={24} color={c.textMuted} />
+            <Ionicons
+              name="person-circle-outline"
+              size={24}
+              color={c.textMuted}
+            />
             <Text style={styles.navTextInactive}>Perfil</Text>
           </Pressable>
         </View>
       </View>
+
+      <Modal
+        visible={previewImage !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewImage(null)}
+      >
+        <View style={styles.imageModal}>
+          <Pressable
+            style={styles.imageModalBackdrop}
+            onPress={() => setPreviewImage(null)}
+            accessibilityLabel="Cerrar imagen ampliada"
+          />
+          {previewImage && (
+            <View style={styles.imageModalContent}>
+              <Pressable
+                style={styles.imageModalClose}
+                onPress={() => setPreviewImage(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar imagen ampliada"
+              >
+                <Ionicons name="close" size={24} color="#fff" />
+              </Pressable>
+              <Image
+                source={{ uri: previewImage.uri }}
+                style={styles.imagePreview}
+                resizeMode="contain"
+                accessible
+                accessibilityLabel={`Foto ampliada de ${previewImage.name}`}
+              />
+            </View>
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
 
-const createStyles = (c: ThemeColors) => StyleSheet.create({
-  container: { flex: 1 },
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1 },
 
-  bgTop: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: "30%",
-    backgroundColor: c.decorStudent,
-    borderBottomRightRadius: 80,
-    borderBottomLeftRadius: 80,
-    zIndex: 0,
-  },
-  bgBottom: {
-    position: "absolute",
-    top: "48%",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: c.surfaceAlt,
-    borderTopLeftRadius: 80,
-    borderTopRightRadius: 80,
-    zIndex: 0,
-  },
+    bgTop: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: "30%",
+      backgroundColor: c.decorStudent,
+      borderBottomRightRadius: 80,
+      borderBottomLeftRadius: 80,
+      zIndex: 0,
+    },
+    bgBottom: {
+      position: "absolute",
+      top: "48%",
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: c.surfaceAlt,
+      borderTopLeftRadius: 80,
+      borderTopRightRadius: 80,
+      zIndex: 0,
+    },
 
-  loading: { flex: 1, justifyContent: "center", alignItems: "center" },
+    loading: { flex: 1, justifyContent: "center", alignItems: "center" },
 
-  // ✅ HEADER MEJORADO CON LOGOUT ALINEADO
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start", // Alinea al inicio para que el logout quede arriba
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 16,
-    zIndex: 1,
-  },
-  headerTextContainer: { flex: 1 }, // Permite que el texto ocupe el espacio disponible
-  title: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: c.text,
-    letterSpacing: -0.5,
-  },
-  subtitle: { fontSize: 15, color: c.textSecondary, marginTop: 4 },
+    // ✅ HEADER MEJORADO CON LOGOUT ALINEADO
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start", // Alinea al inicio para que el logout quede arriba
+      paddingHorizontal: 24,
+      paddingTop: 60,
+      paddingBottom: 16,
+      zIndex: 1,
+    },
+    headerTextContainer: { flex: 1 }, // Permite que el texto ocupe el espacio disponible
+    title: {
+      fontSize: 28,
+      fontWeight: "800",
+      color: c.text,
+      letterSpacing: -0.5,
+    },
+    subtitle: { fontSize: 15, color: c.textSecondary, marginTop: 4 },
 
-  // ✅ ESTILOS DEL BOTÓN DE SALIR TIPO CÁPSULA
-  logoutBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    padding: 10,
-    borderRadius: 12,
-    backgroundColor: c.dangerSoft,
-    borderWidth: 1,
-    borderColor: c.dangerBorder,
-  },
-  headerActions: { flexDirection: "row", gap: 10, marginLeft: 12 },
-  logoutText: { fontSize: 13, fontWeight: "700", color: c.danger },
-  toolsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    paddingHorizontal: 24,
-    paddingBottom: 12,
-    zIndex: 1,
-  },
-  logoutBtnPressed: { opacity: 0.7, transform: [{ scale: 0.95 }] },
+    // ✅ ESTILOS DEL BOTÓN DE SALIR TIPO CÁPSULA
+    logoutBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      padding: 10,
+      borderRadius: 12,
+      backgroundColor: c.dangerSoft,
+      borderWidth: 1,
+      borderColor: c.dangerBorder,
+    },
+    headerActions: { flexDirection: "row", gap: 10, marginLeft: 12 },
+    logoutText: { fontSize: 13, fontWeight: "700", color: c.danger },
+    assistantBubbleWrap: {
+      position: "absolute",
+      right: 24,
+      bottom: 130,
+      zIndex: 20,
+    },
+    logoutBtnPressed: { opacity: 0.7, transform: [{ scale: 0.95 }] },
 
-  searchBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginHorizontal: 24,
-    marginTop: 4,
-    paddingHorizontal: 14,
-    height: 46,
-    borderRadius: 16,
-    backgroundColor: c.surface,
-    borderWidth: 1,
-    borderColor: c.border,
-    zIndex: 1,
-  },
-  searchInput: { flex: 1, fontSize: 15, color: c.text, paddingVertical: 0 },
+    searchBox: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginHorizontal: 24,
+      marginTop: 4,
+      paddingHorizontal: 14,
+      height: 46,
+      borderRadius: 16,
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      zIndex: 1,
+    },
+    searchInput: { flex: 1, fontSize: 15, color: c.text, paddingVertical: 0 },
 
-  categoriesRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    gap: 8,
-    zIndex: 1,
-  },
-  categoryBtn: {
-    flex: 1,
-    height: 38,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 19,
-    backgroundColor: c.surface,
-    borderWidth: 1,
-    borderColor: c.border,
-  },
-  categoryBtnActive: {
-    backgroundColor: c.categoryActiveStudent,
-    borderColor: c.categoryActiveStudent,
-  },
-  categoryText: { fontSize: 13, fontWeight: "600", color: c.textSecondary },
-  categoryTextActive: { color: c.onAccent, fontWeight: "700" },
+    categoriesRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      gap: 8,
+      zIndex: 1,
+    },
+    categoryBtn: {
+      flex: 1,
+      height: 38,
+      justifyContent: "center",
+      alignItems: "center",
+      borderRadius: 19,
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    categoryBtnActive: {
+      backgroundColor: c.categoryActiveStudent,
+      borderColor: c.categoryActiveStudent,
+    },
+    categoryText: { fontSize: 13, fontWeight: "600", color: c.textSecondary },
+    categoryTextActive: { color: c.onAccent, fontWeight: "700" },
 
-  list: {
-    paddingHorizontal: 24,
-    paddingTop: 8,
-    paddingBottom: 140,
-    alignItems: "center",
-    zIndex: 1,
-  },
+    list: {
+      paddingHorizontal: 24,
+      paddingTop: 8,
+      paddingBottom: 140,
+      alignItems: "center",
+      zIndex: 1,
+    },
 
-  card: {
-    width: "100%",
-    maxWidth: 320,
-    flexDirection: "row",
-    backgroundColor: c.surface,
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 14,
-    alignItems: "center",
-    shadowColor: c.shadow,
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-  },
-  cardNoImage: { paddingRight: 18 },
-  cardDisabled: { opacity: 0.8, backgroundColor: c.surfaceAlt },
-  image: {
-    width: 72,
-    height: 72,
-    borderRadius: 16,
-    backgroundColor: c.surfaceMuted,
-    marginRight: 16,
-  },
-  info: { flex: 1 },
-  infoFullWidth: { flex: 1, marginRight: 0 },
-  name: { fontSize: 16, fontWeight: "700", color: c.text, marginBottom: 3 },
-  textDisabled: { color: c.textMuted },
-  desc: { fontSize: 13, color: c.textSecondary, lineHeight: 18, marginBottom: 6 },
-  price: { fontSize: 18, fontWeight: "800", color: c.accent, marginBottom: 6 },
+    card: {
+      width: "100%",
+      maxWidth: 320,
+      flexDirection: "row",
+      backgroundColor: c.surface,
+      borderRadius: 20,
+      padding: 18,
+      marginBottom: 14,
+      alignItems: "center",
+      shadowColor: c.shadow,
+      shadowOpacity: 0.06,
+      shadowRadius: 12,
+      elevation: 4,
+      borderWidth: 1,
+      borderColor: c.borderSoft,
+    },
+    cardNoImage: { paddingRight: 18 },
+    cardDisabled: { opacity: 0.8, backgroundColor: c.surfaceAlt },
+    image: {
+      width: 72,
+      height: 72,
+      borderRadius: 16,
+      backgroundColor: c.surfaceMuted,
+      marginRight: 16,
+    },
+    imageModal: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    imageModalBackdrop: {
+      ...StyleSheet.absoluteFill,
+      backgroundColor: "rgba(0, 0, 0, 0.88)",
+    },
+    imageModalContent: {
+      width: "100%",
+      height: "82%",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    imageModalClose: {
+      alignSelf: "flex-end",
+      marginRight: 20,
+      marginBottom: 12,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: "rgba(255, 255, 255, 0.18)",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    imagePreview: { width: "100%", flex: 1 },
+    info: { flex: 1 },
+    infoFullWidth: { flex: 1, marginRight: 0 },
+    name: { fontSize: 16, fontWeight: "700", color: c.text, marginBottom: 3 },
+    textDisabled: { color: c.textMuted },
+    desc: {
+      fontSize: 13,
+      color: c.textSecondary,
+      lineHeight: 18,
+      marginBottom: 6,
+    },
+    price: {
+      fontSize: 18,
+      fontWeight: "800",
+      color: c.accent,
+      marginBottom: 6,
+    },
 
-  stockBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    gap: 4,
-  },
-  badgeInStock: { backgroundColor: c.stockIn },
-  badgeLowStock: { backgroundColor: c.stockLow },
-  badgeOutOfStock: { backgroundColor: c.stockOut },
-  stockText: { fontSize: 11, fontWeight: "700", color: c.onAccent },
+    stockBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      alignSelf: "flex-start",
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
+      gap: 4,
+    },
+    badgeInStock: { backgroundColor: c.stockIn },
+    badgeLowStock: { backgroundColor: c.stockLow },
+    badgeOutOfStock: { backgroundColor: c.stockOut },
+    stockText: { fontSize: 11, fontWeight: "700", color: c.onAccent },
 
-  addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    backgroundColor: c.addProduct,
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: 12,
-  },
+    addButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 14,
+      backgroundColor: c.addProduct,
+      justifyContent: "center",
+      alignItems: "center",
+      marginLeft: 12,
+    },
 
-  emptyContainer: {
-    alignItems: "center",
-    marginTop: 80,
-    padding: 24,
-    zIndex: 1,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: c.text,
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 15,
-    color: c.textSecondary,
-    textAlign: "center",
-    maxWidth: 260,
-    lineHeight: 22,
-  },
+    emptyContainer: {
+      alignItems: "center",
+      marginTop: 80,
+      padding: 24,
+      zIndex: 1,
+    },
+    emptyTitle: {
+      fontSize: 20,
+      fontWeight: "800",
+      color: c.text,
+      marginBottom: 8,
+    },
+    emptyText: {
+      fontSize: 15,
+      color: c.textSecondary,
+      textAlign: "center",
+      maxWidth: 260,
+      lineHeight: 22,
+    },
 
-  toastContainer: {
-    position: "absolute",
-    bottom: 100,
-    left: 24,
-    right: 24,
-    alignItems: "center",
-    zIndex: 100,
-  },
-  toast: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: c.surface,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderRadius: 16,
-    shadowColor: c.shadow,
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: c.border,
-  },
-  toastText: { fontSize: 14, fontWeight: "600", color: c.text },
+    toastContainer: {
+      position: "absolute",
+      bottom: 100,
+      left: 24,
+      right: 24,
+      alignItems: "center",
+      zIndex: 100,
+    },
+    toast: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: c.surface,
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+      borderRadius: 16,
+      shadowColor: c.shadow,
+      shadowOpacity: 0.1,
+      shadowRadius: 12,
+      elevation: 8,
+      gap: 10,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    toastText: { fontSize: 14, fontWeight: "600", color: c.text },
 
-  floatingNavWrapper: {
-    position: "absolute",
-    bottom: 32,
-    left: 24,
-    right: 24,
-    zIndex: 10,
-    alignItems: "center",
-  },
-  floatingNav: {
-    flexDirection: "row",
-    backgroundColor: c.surface,
-    borderRadius: 32,
-    padding: 8,
-    shadowColor: c.shadow,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    elevation: 12,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-  },
+    floatingNavWrapper: {
+      position: "absolute",
+      bottom: 32,
+      left: 24,
+      right: 24,
+      zIndex: 10,
+      alignItems: "center",
+    },
+    floatingNav: {
+      flexDirection: "row",
+      backgroundColor: c.surface,
+      borderRadius: 32,
+      padding: 8,
+      shadowColor: c.shadow,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.12,
+      shadowRadius: 24,
+      elevation: 12,
+      borderWidth: 1,
+      borderColor: c.borderSoft,
+    },
 
-  navItemActive: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingVertical: 12,
-    borderRadius: 24,
-    backgroundColor: c.surface,
-    borderWidth: 1,
-    borderColor: c.surface,
-  },
+    navItemActive: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
+      paddingVertical: 12,
+      borderRadius: 24,
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.surface,
+    },
 
-  navItemInactive: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingVertical: 12,
-    borderRadius: 24,
-  },
+    navItemInactive: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
+      paddingVertical: 12,
+      borderRadius: 24,
+    },
 
-  navTextActive: { color: c.accent, fontSize: 12, fontWeight: "800" },
-  navTextInactive: { fontSize: 12, fontWeight: "600", color: c.textMuted },
-  navTextDark: { color: c.text, fontWeight: "700" },
+    navTextActive: { color: c.accent, fontSize: 12, fontWeight: "800" },
+    navTextInactive: { fontSize: 12, fontWeight: "600", color: c.textMuted },
+    navTextDark: { color: c.text, fontWeight: "700" },
 
-  cartIconWrapper: {
-    position: "relative",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badge: {
-    position: "absolute",
-    top: -6,
-    right: -8,
-    backgroundColor: c.danger,
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 4,
-    zIndex: 10,
-    borderWidth: 2,
-    borderColor: c.surface,
-  },
-  badgeText: { color: c.onAccent, fontSize: 10, fontWeight: "800" },
-});
+    cartIconWrapper: {
+      position: "relative",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    badge: {
+      position: "absolute",
+      top: -6,
+      right: -8,
+      backgroundColor: c.danger,
+      borderRadius: 10,
+      minWidth: 20,
+      height: 20,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 4,
+      zIndex: 10,
+      borderWidth: 2,
+      borderColor: c.surface,
+    },
+    badgeText: { color: c.onAccent, fontSize: 10, fontWeight: "800" },
+  });

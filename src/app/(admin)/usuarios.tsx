@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
-import { useSafeRouter } from "../../hooks/use-safe-router";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
@@ -11,11 +10,12 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { showAlert } from "../../components/app-alert";
 import { ThemeColors } from "../../constants/theme";
 import { useAuth, UserRole } from "../../context/AuthContext";
+import { useSafeRouter } from "../../hooks/use-safe-router";
 import { useThemedStyles } from "../../hooks/use-themed-styles";
 import { supabase } from "../../services/supabase";
-import { showAlert } from "../../components/app-alert";
 
 const ROLE_LABELS: Record<UserRole, string> = {
   student: "Estudiante",
@@ -36,8 +36,16 @@ export default function UsuariosScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const { user } = useAuth();
+  const [loggingOut, setLoggingOut] = useState(false);
+  const { user, signOut } = useAuth();
   const router = useSafeRouter();
+
+  const handleSignOut = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    await signOut();
+    router.replace("/(auth)/login");
+  };
 
   const fetchUsers = useCallback(async () => {
     setLoadError(null);
@@ -191,8 +199,28 @@ export default function UsuariosScreen() {
       <View style={styles.bgTop} />
 
       <View style={styles.header}>
-        <Text style={styles.headerSubtitle}>PANEL DE ADMINISTRACIÓN</Text>
-        <Text style={styles.title} accessibilityRole="header">Usuarios y roles</Text>
+        <View style={styles.headerText}>
+          <Text style={styles.headerSubtitle}>PANEL DE ADMINISTRACIÓN</Text>
+          <Text style={styles.title} accessibilityRole="header">
+            Usuarios y roles
+          </Text>
+        </View>
+        <Pressable
+          style={({ pressed }) => [
+            styles.logoutBtn,
+            pressed && styles.logoutBtnPressed,
+          ]}
+          onPress={handleSignOut}
+          disabled={loggingOut}
+          accessibilityRole="button"
+          accessibilityLabel="Cerrar sesión"
+        >
+          <Ionicons
+            name="log-out-outline"
+            size={22}
+            color={loggingOut ? c.textMuted : c.danger}
+          />
+        </Pressable>
       </View>
 
       <View style={styles.searchBox}>
@@ -241,27 +269,6 @@ export default function UsuariosScreen() {
 
       <View style={styles.floatingNavWrapper}>
         <View style={styles.floatingNav}>
-          <Pressable
-            style={styles.navItemInactive}
-            onPress={() => router.dismissTo("/(admin)/menu")}
-          >
-            <Ionicons name="restaurant-outline" size={24} color={c.textMuted} />
-            <Text style={styles.navTextInactive}>Menú</Text>
-          </Pressable>
-          <Pressable
-            style={styles.navItemInactive}
-            onPress={() => router.replace("/agregar")}
-          >
-            <Ionicons name="add-circle-outline" size={24} color={c.textMuted} />
-            <Text style={styles.navTextInactive}>Agregar</Text>
-          </Pressable>
-          <Pressable
-            style={styles.navItemInactive}
-            onPress={() => router.replace("/(admin)/pedidos")}
-          >
-            <Ionicons name="list-outline" size={24} color={c.textMuted} />
-            <Text style={styles.navTextInactive}>Pedidos</Text>
-          </Pressable>
           <Pressable style={styles.navItemActive}>
             <Ionicons name="people" size={24} color={c.accent} />
             <Text style={styles.navTextActive}>Usuarios</Text>
@@ -296,7 +303,16 @@ const createStyles = (c: ThemeColors) =>
       borderBottomRightRadius: 80,
       borderBottomLeftRadius: 80,
     },
-    header: { paddingTop: 64, paddingHorizontal: 24, paddingBottom: 16 },
+    header: {
+      paddingTop: 64,
+      paddingHorizontal: 24,
+      paddingBottom: 16,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    headerText: { flex: 1 },
     headerSubtitle: {
       fontSize: 12,
       fontWeight: "700",
@@ -304,6 +320,15 @@ const createStyles = (c: ThemeColors) =>
       letterSpacing: 1,
     },
     title: { fontSize: 28, fontWeight: "800", color: c.text, marginTop: 4 },
+    logoutBtn: {
+      width: 44,
+      height: 44,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 14,
+      backgroundColor: c.dangerSoft,
+    },
+    logoutBtnPressed: { opacity: 0.7 },
     searchBox: {
       flexDirection: "row",
       alignItems: "center",
@@ -373,17 +398,18 @@ const createStyles = (c: ThemeColors) =>
 
     floatingNavWrapper: {
       position: "absolute",
-      bottom: 32,
-      left: 24,
-      right: 24,
+      bottom: 35,
+      left: 0,
+      right: 0,
       zIndex: 10,
       alignItems: "center",
     },
     floatingNav: {
+      width: 200,
       flexDirection: "row",
       backgroundColor: c.surface,
-      borderRadius: 32,
-      padding: 8,
+      borderRadius: 28,
+      padding: 4,
       shadowColor: c.shadow,
       shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.12,
@@ -396,18 +422,18 @@ const createStyles = (c: ThemeColors) =>
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      gap: 4,
-      paddingVertical: 12,
-      borderRadius: 24,
+      gap: 3,
+      paddingVertical: 10,
+      borderRadius: 22,
     },
     navItemInactive: {
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      gap: 4,
-      paddingVertical: 12,
-      borderRadius: 24,
+      gap: 3,
+      paddingVertical: 8,
+      borderRadius: 22,
     },
-    navTextActive: { fontSize: 12, fontWeight: "700", color: c.accent },
-    navTextInactive: { fontSize: 12, fontWeight: "600", color: c.textMuted },
+    navTextActive: { fontSize: 11, fontWeight: "700", color: c.accent },
+    navTextInactive: { fontSize: 11, fontWeight: "600", color: c.textMuted },
   });

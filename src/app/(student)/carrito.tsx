@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeRouter } from "../../hooks/use-safe-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { canAddMore, useCart, writeCart } from "../../hooks/useCart";
 import { createOrder } from "../../services/orders";
@@ -20,6 +20,7 @@ import { ThemeColors } from "../../constants/theme";
 import { useThemedStyles } from "../../hooks/use-themed-styles";
 import { showAlert } from "../../components/app-alert";
 import { announce } from "../../utils/announce";
+import { supabase } from "../../services/supabase";
 
 const formatPrice = (price: number) => "$" + price.toLocaleString("es-AR");
 
@@ -29,8 +30,48 @@ export default function StudentCartScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [sendingOrder, setSendingOrder] = useState(false);
+  const [menuImages, setMenuImages] = useState<Record<number, string>>({});
   const router = useSafeRouter();
   const { user } = useAuth();
+  const missingImageIds = items
+    .filter((item) => !item.imagen_url)
+    .map((item) => item.id)
+    .join(",");
+
+  useEffect(() => {
+    if (!missingImageIds) return;
+    let active = true;
+    const ids = missingImageIds.split(",").map(Number);
+
+    supabase
+      .from("menus")
+      .select("id, imagen_url")
+      .in("id", ids)
+      .not("imagen_url", "is", null)
+      .then(({ data, error }) => {
+        if (error) {
+          console.warn("No se pudieron recuperar las fotos del carrito:", error.message);
+          return;
+        }
+        if (!active) return;
+        setMenuImages((current) => ({
+          ...current,
+          ...Object.fromEntries(
+            (data ?? [])
+              .filter(
+                (item): item is typeof item & { imagen_url: string } =>
+                  typeof item.imagen_url === "string" &&
+                  item.imagen_url.length > 0,
+              )
+              .map((item) => [item.id, item.imagen_url]),
+          ),
+        }));
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [missingImageIds]);
 
   // El state tarda un render en actualizarse: con dos toques rápidos los dos
   // veían sendingOrder = false y se creaban pedidos repetidos. El ref no.
@@ -168,79 +209,85 @@ export default function StudentCartScreen() {
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => {
-          const hasImage =
-            typeof item.imagen_url === "string" && item.imagen_url.length > 0;
+          const imageUrl = item.imagen_url ?? menuImages[item.id];
+          const hasImage = typeof imageUrl === "string" && imageUrl.length > 0;
 
           return (
-            <View style={[styles.card, !hasImage && styles.cardNoImage]}>
-              {hasImage && (
-                <Image
-                  source={{ uri: item.imagen_url! }}
-                  style={styles.image}
-                  accessible
-                  accessibilityLabel={`Foto de ${item.nombre}`}
-                />
-              )}
+            <View style={styles.card}>
+              <View style={styles.cardMain}>
+                {hasImage && (
+                  <Image
+                    source={{ uri: imageUrl! }}
+                    style={styles.image}
+                    accessible
+                    accessibilityLabel={`Foto de ${item.nombre}`}
+                  />
+                )}
 
-              <View style={[styles.info, !hasImage && styles.infoFullWidth]}>
-                <Text style={styles.name}>{item.nombre}</Text>
-                <Text style={styles.price}>{formatPrice(item.precio)}</Text>
+                <View style={styles.info}>
+                  <Text style={styles.name} numberOfLines={2}>
+                    {item.nombre}
+                  </Text>
+                  <Text style={styles.price}>{formatPrice(item.precio)}</Text>
+                </View>
               </View>
 
-              <View style={styles.qtyControls}>
-                <Pressable
-                  style={[
-                    styles.qtyBtn,
-                    item.cantidad <= 1 && styles.qtyBtnDisabled,
-                  ]}
-                  onPress={() => updateQuantity(item.id, -1)}
-                  disabled={item.cantidad <= 1}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Quitar uno de ${item.nombre}`}
-                  accessibilityState={{ disabled: item.cantidad <= 1 }}
-                >
-                  <Ionicons
-                    name="remove"
-                    size={18}
-                    color={item.cantidad <= 1 ? c.textFaint : c.text}
-                  />
-                </Pressable>
+              <View style={styles.cardActions}>
+                <View style={styles.qtyControls}>
+                  <Pressable
+                    style={[
+                      styles.qtyBtn,
+                      item.cantidad <= 1 && styles.qtyBtnDisabled,
+                    ]}
+                    onPress={() => updateQuantity(item.id, -1)}
+                    disabled={item.cantidad <= 1}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Quitar uno de ${item.nombre}`}
+                    accessibilityState={{ disabled: item.cantidad <= 1 }}
+                  >
+                    <Ionicons
+                      name="remove"
+                      size={18}
+                      color={item.cantidad <= 1 ? c.textFaint : c.text}
+                    />
+                  </Pressable>
 
-                <Text
-                  style={styles.qtyText}
-                  accessibilityLabel={`Cantidad: ${item.cantidad}`}
-                  accessibilityLiveRegion="polite"
-                >
-                  {item.cantidad}
-                </Text>
+                  <Text
+                    style={styles.qtyText}
+                    accessibilityLabel={`Cantidad: ${item.cantidad}`}
+                    accessibilityLiveRegion="polite"
+                  >
+                    {item.cantidad}
+                  </Text>
+
+                  <Pressable
+                    style={[
+                      styles.qtyBtn,
+                      !canAddMore(item) && styles.qtyBtnDisabled,
+                    ]}
+                    onPress={() => updateQuantity(item.id, 1)}
+                    disabled={!canAddMore(item)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Agregar uno más de ${item.nombre}`}
+                    accessibilityState={{ disabled: !canAddMore(item) }}
+                  >
+                    <Ionicons
+                      name="add"
+                      size={18}
+                      color={canAddMore(item) ? c.text : c.textFaint}
+                    />
+                  </Pressable>
+                </View>
 
                 <Pressable
-                  style={[
-                    styles.qtyBtn,
-                    !canAddMore(item) && styles.qtyBtnDisabled,
-                  ]}
-                  onPress={() => updateQuantity(item.id, 1)}
-                  disabled={!canAddMore(item)}
+                  style={styles.deleteBtn}
+                  onPress={() => removeItem(item.id)}
                   accessibilityRole="button"
-                  accessibilityLabel={`Agregar uno más de ${item.nombre}`}
-                  accessibilityState={{ disabled: !canAddMore(item) }}
+                  accessibilityLabel={`Quitar ${item.nombre} del carrito`}
                 >
-                  <Ionicons
-                    name="add"
-                    size={18}
-                    color={canAddMore(item) ? c.text : c.textFaint}
-                  />
+                  <Ionicons name="trash-outline" size={20} color={c.danger} />
                 </Pressable>
               </View>
-
-              <Pressable
-                style={styles.deleteBtn}
-                onPress={() => removeItem(item.id)}
-                accessibilityRole="button"
-                accessibilityLabel={`Quitar ${item.nombre} del carrito`}
-              >
-                <Ionicons name="trash-outline" size={20} color={c.danger} />
-              </Pressable>
             </View>
           );
         }}
@@ -380,14 +427,11 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
 
   list: { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 140, zIndex: 1 },
 
-  // TARJETAS ELEVADAS ESTILO MENÚ
   card: {
-    flexDirection: "row",
     backgroundColor: c.surface,
     borderRadius: 20,
-    padding: 16,
+    padding: 14,
     marginBottom: 12,
-    alignItems: "center",
     shadowColor: c.shadow,
     shadowOpacity: 0.06,
     shadowRadius: 12,
@@ -395,26 +439,37 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     borderWidth: 1,
     borderColor: c.borderSoft,
   },
-  cardNoImage: { paddingRight: 16 },
+  cardMain: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   image: {
-    width: 70,
-    height: 70,
-    borderRadius: 16,
+    width: 64,
+    height: 64,
+    borderRadius: 14,
     backgroundColor: c.surfaceMuted,
-    marginRight: 14,
+    marginRight: 12,
   },
   info: { flex: 1 },
-  infoFullWidth: { flex: 1, marginRight: 0 },
   name: { fontSize: 16, fontWeight: "700", color: c.text, marginBottom: 4 },
   price: { fontSize: 17, fontWeight: "800", color: c.accent },
 
+  cardActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: c.borderSoft,
+  },
   qtyControls: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: c.surfaceMuted,
     borderRadius: 10,
     overflow: "hidden",
-    marginLeft: 8,
+    marginLeft: 0,
   },
   qtyBtn: {
     width: 32,
@@ -431,7 +486,14 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     fontWeight: "700",
     color: c.text,
   },
-  deleteBtn: { padding: 8, marginLeft: 8 },
+  deleteBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    backgroundColor: c.dangerSoft,
+  },
 
   // ✅ WRAPPER DEL RESUMEN FLOTANTE ÚNICO
   summaryFloatingWrapper: {

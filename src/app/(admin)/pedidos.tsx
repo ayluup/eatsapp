@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "expo-router";
-import { useSafeRouter } from "../../hooks/use-safe-router";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -10,8 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { useAuth } from "../../context/AuthContext";
-import { supabase } from "../../services/supabase";
+import { showAlert } from "../../components/app-alert";
 import {
   ACTIVE_STATUSES,
   formatPrice,
@@ -23,9 +21,11 @@ import {
   STATUS_CONFIG,
 } from "../../constants/orders";
 import { ThemeColors } from "../../constants/theme";
+import { useAuth } from "../../context/AuthContext";
 import { useOrdersRealtime } from "../../hooks/use-orders-realtime";
+import { useSafeRouter } from "../../hooks/use-safe-router";
 import { useThemedStyles } from "../../hooks/use-themed-styles";
-import { showAlert } from "../../components/app-alert";
+import { supabase } from "../../services/supabase";
 import { announce } from "../../utils/announce";
 
 // Primero lo que hay que preparar, después lo que espera ser retirado
@@ -94,7 +94,10 @@ export default function AdminPedidosScreen() {
         showAlert(
           "Tardó demasiado",
           "No pudimos cargar los pedidos. ¿Querés intentar de nuevo?",
-          [{ text: "Cancelar", style: "cancel" }, { text: "Reintentar", onPress: fetchOrders }],
+          [
+            { text: "Cancelar", style: "cancel" },
+            { text: "Reintentar", onPress: fetchOrders },
+          ],
         );
       } else {
         showAlert("Error", "No se pudieron cargar los pedidos");
@@ -189,23 +192,34 @@ export default function AdminPedidosScreen() {
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <Pressable
-          onPress={() => router.back()}
-          style={styles.backBtn}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-        >
+            onPress={() => router.back()}
+            style={styles.backBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Volver"
+          >
             <Ionicons name="arrow-back" size={26} color={c.text} />
           </Pressable>
           <Pressable
             onPress={() => router.push("/(admin)/historial")}
-            style={({ pressed }) => [styles.historyBtn, pressed && styles.pressed]}
+            style={({ pressed }) => [
+              styles.historyBtn,
+              pressed && styles.pressed,
+            ]}
           >
-            <Ionicons name="stats-chart-outline" size={18} color={c.accentStrong} />
+            <Ionicons
+              name="stats-chart-outline"
+              size={18}
+              color={c.accentStrong}
+            />
             <Text style={styles.historyText}>Historial y ventas</Text>
           </Pressable>
         </View>
-        <Text style={styles.title} accessibilityRole="header">Gestión de Pedidos</Text>
-        <Text style={styles.subtitle}>Se actualiza solo cuando entra un pedido</Text>
+        <Text style={styles.title} accessibilityRole="header">
+          Gestión de Pedidos
+        </Text>
+        <Text style={styles.subtitle}>
+          Se actualiza solo cuando entra un pedido
+        </Text>
       </View>
 
       {sections.length === 0 ? (
@@ -228,9 +242,12 @@ export default function AdminPedidosScreen() {
           showsVerticalScrollIndicator={false}
           renderItem={({ item: section }) => (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle} accessibilityRole="header">{section.title}</Text>
+              <Text style={styles.sectionTitle} accessibilityRole="header">
+                {section.title}
+              </Text>
               {section.data.map((order) => {
-                const config = STATUS_CONFIG[order.estado] ?? STATUS_CONFIG.pending;
+                const config =
+                  STATUS_CONFIG[order.estado] ?? STATUS_CONFIG.pending;
                 const isUpdating = updatingId === order.id;
 
                 return (
@@ -263,7 +280,8 @@ export default function AdminPedidosScreen() {
                     <View style={styles.itemsPreview}>
                       {order.items.map((item, i) => (
                         <Text key={i} style={styles.itemText}>
-                          • {item.nombre}{item.cantidad > 1 && ` x${item.cantidad}`}
+                          • {item.nombre}
+                          {item.cantidad > 1 && ` x${item.cantidad}`}
                         </Text>
                       ))}
                     </View>
@@ -278,21 +296,21 @@ export default function AdminPedidosScreen() {
                           <ActivityIndicator size="small" color={c.accent} />
                         ) : (
                           <>
-                            <Pressable
-                              style={[styles.actionBtn, styles.btnCancel]}
-                              onPress={() => confirmCancel(order)}
-                              accessibilityLabel="Cancelar pedido"
-                            >
-                              <Ionicons name="close" size={18} color={c.danger} />
-                            </Pressable>
-
                             {order.estado === "pending" && (
                               <Pressable
                                 style={[styles.actionBtn, styles.btnPreparing]}
-                                onPress={() => updateStatus(order.id, "preparing")}
-                                accessibilityLabel="Pasar a en preparación"
+                                onPress={() =>
+                                  updateStatus(order.id, "preparing")
+                                }
+                                accessibilityRole="button"
+                                accessibilityLabel="Empezar a preparar pedido"
                               >
-                                <Ionicons name="flame-outline" size={18} color={c.info} />
+                                <Ionicons
+                                  name="restaurant-outline"
+                                  size={18}
+                                  color={c.info}
+                                />
+                                <Text style={styles.preparingText}>Preparar</Text>
                               </Pressable>
                             )}
 
@@ -313,13 +331,33 @@ export default function AdminPedidosScreen() {
                             {order.estado === "ready" && (
                               <Pressable
                                 style={[styles.actionBtn, styles.btnDelivered]}
-                                onPress={() => updateStatus(order.id, "delivered")}
+                                onPress={() =>
+                                  updateStatus(order.id, "delivered")
+                                }
                                 accessibilityLabel="Marcar como entregado"
                               >
-                                <Ionicons name="bag-check-outline" size={18} color={c.text} />
-                                <Text style={styles.deliveredText}>Entregado</Text>
+                                <Ionicons
+                                  name="bag-check-outline"
+                                  size={18}
+                                  color={c.text}
+                                />
+                                <Text style={styles.deliveredText}>
+                                  Entregado
+                                </Text>
                               </Pressable>
                             )}
+
+                            <Pressable
+                              style={[styles.actionBtn, styles.btnCancel]}
+                              onPress={() => confirmCancel(order)}
+                              accessibilityLabel="Cancelar pedido"
+                            >
+                              <Ionicons
+                                name="close"
+                                size={18}
+                                color={c.danger}
+                              />
+                            </Pressable>
                           </>
                         )}
                       </View>
@@ -333,42 +371,53 @@ export default function AdminPedidosScreen() {
       )}
       <View style={styles.floatingNavWrapper}>
         <View style={styles.floatingNav}>
-          {/* Menú: Inactivo (Gris Outline) */}
-          <Pressable
-            style={styles.navItemInactive}
-            onPress={() => router.dismissTo("/(admin)/menu")}
-          >
-            <Ionicons name="restaurant-outline" size={24} color={c.textMuted} />
-            <Text style={styles.navTextInactive}>Menú</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.navItemInactive}
-            onPress={() => router.replace("/agregar")}
-          >
-            <Ionicons name="add-circle-outline" size={24} color={c.textMuted} />
-            <Text style={styles.navTextInactive}>Agregar</Text>
-          </Pressable>
-
-          <Pressable style={styles.navItemActive}>
-            <Ionicons name="list" size={24} color={c.accent} />
-            <Text style={styles.navTextActive}>Pedidos</Text>
-          </Pressable>
-
-          {role === "superadmin" && (
+          {role === "superadmin" ? (
             <Pressable
-              style={styles.navItemInactive}
+              style={styles.navItemActive}
               onPress={() => router.replace("/(admin)/usuarios")}
             >
-              <Ionicons name="people-outline" size={24} color={c.textMuted} />
-              <Text style={styles.navTextInactive}>Usuarios</Text>
+              <Ionicons name="people" size={24} color={c.accent} />
+              <Text style={styles.navTextActive}>Usuarios</Text>
             </Pressable>
+          ) : (
+            <>
+              <Pressable
+                style={styles.navItemInactive}
+                onPress={() => router.dismissTo("/(admin)/menu")}
+              >
+                <Ionicons
+                  name="restaurant-outline"
+                  size={24}
+                  color={c.textMuted}
+                />
+                <Text style={styles.navTextInactive}>Menú</Text>
+              </Pressable>
+              <Pressable
+                style={styles.navItemInactive}
+                onPress={() => router.replace("/agregar")}
+              >
+                <Ionicons
+                  name="add-circle-outline"
+                  size={24}
+                  color={c.textMuted}
+                />
+                <Text style={styles.navTextInactive}>Agregar</Text>
+              </Pressable>
+              <Pressable style={styles.navItemActive}>
+                <Ionicons name="list" size={24} color={c.accent} />
+                <Text style={styles.navTextActive}>Pedidos</Text>
+              </Pressable>
+            </>
           )}
           <Pressable
             style={styles.navItemInactive}
             onPress={() => router.replace("/(admin)/perfil")}
           >
-            <Ionicons name="person-circle-outline" size={24} color={c.textMuted} />
+            <Ionicons
+              name="person-circle-outline"
+              size={24}
+              color={c.textMuted}
+            />
             <Text style={styles.navTextInactive}>Perfil</Text>
           </Pressable>
         </View>
@@ -377,210 +426,232 @@ export default function AdminPedidosScreen() {
   );
 }
 
-const createStyles = (c: ThemeColors) => StyleSheet.create({
-  container: { flex: 1 },
-  pressed: { opacity: 0.7 },
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1 },
+    pressed: { opacity: 0.7 },
 
-  // ✅ FONDO DIFUMINADO IDÉNTICO AL MENÚ
-  bgTop: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: "30%",
-    backgroundColor: c.decorAdmin,
-    borderBottomRightRadius: 80,
-    borderBottomLeftRadius: 80,
-    zIndex: 0,
-  },
-  bgBottom: {
-    position: "absolute",
-    top: "48%",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: c.surfaceAlt,
-    borderTopLeftRadius: 80,
-    borderTopRightRadius: 80,
-    zIndex: 0,
-  },
+    // ✅ FONDO DIFUMINADO IDÉNTICO AL MENÚ
+    bgTop: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: "30%",
+      backgroundColor: c.decorAdmin,
+      borderBottomRightRadius: 80,
+      borderBottomLeftRadius: 80,
+      zIndex: 0,
+    },
+    bgBottom: {
+      position: "absolute",
+      top: "48%",
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: c.surfaceAlt,
+      borderTopLeftRadius: 80,
+      borderTopRightRadius: 80,
+      zIndex: 0,
+    },
 
-  loading: { flex: 1, justifyContent: "center", alignItems: "center" },
+    loading: { flex: 1, justifyContent: "center", alignItems: "center" },
 
-  // ✅ HEADER PERSONALIZADO CON FLECHITA
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 16,
-    zIndex: 1,
-  },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: c.surface,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: c.border,
-  },
-  historyBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 14,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: c.accentSoft,
-  },
-  historyText: { fontSize: 14, fontWeight: "700", color: c.accentStrong },
-  title: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: c.text,
-    letterSpacing: -0.5,
-  },
-  subtitle: { fontSize: 15, color: c.textSecondary, marginTop: 4 },
+    // ✅ HEADER PERSONALIZADO CON FLECHITA
+    header: {
+      paddingHorizontal: 24,
+      paddingTop: 60,
+      paddingBottom: 16,
+      zIndex: 1,
+    },
+    headerRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 12,
+    },
+    backBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      backgroundColor: c.surface,
+      justifyContent: "center",
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    historyBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 14,
+      height: 44,
+      borderRadius: 12,
+      backgroundColor: c.accentSoft,
+    },
+    historyText: { fontSize: 14, fontWeight: "700", color: c.accentStrong },
+    title: {
+      fontSize: 28,
+      fontWeight: "800",
+      color: c.text,
+      letterSpacing: -0.5,
+    },
+    subtitle: { fontSize: 15, color: c.textSecondary, marginTop: 4 },
 
-  list: { paddingHorizontal: 24, paddingBottom: 140, zIndex: 1 },
-  section: { marginBottom: 24 },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: c.text,
-    marginBottom: 12,
-    marginLeft: 4,
-    textTransform: "capitalize",
-  },
+    list: { paddingHorizontal: 24, paddingBottom: 140, zIndex: 1 },
+    section: { marginBottom: 24 },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: "800",
+      color: c.text,
+      marginBottom: 12,
+      marginLeft: 4,
+      textTransform: "capitalize",
+    },
 
-  card: {
-    backgroundColor: c.surface,
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 12,
-    shadowColor: c.shadow,
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-  orderId: { fontSize: 16, fontWeight: "800", color: c.text },
-  paymentMethod: { fontSize: 13, color: c.textSecondary, fontWeight: "600" },
+    card: {
+      backgroundColor: c.surface,
+      borderRadius: 20,
+      padding: 18,
+      marginBottom: 12,
+      shadowColor: c.shadow,
+      shadowOpacity: 0.06,
+      shadowRadius: 12,
+      elevation: 4,
+      borderWidth: 1,
+      borderColor: c.borderSoft,
+    },
+    cardHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: 10,
+    },
+    orderId: { fontSize: 16, fontWeight: "800", color: c.text },
+    paymentMethod: { fontSize: 13, color: c.textSecondary, fontWeight: "600" },
 
-  statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 16,
-    gap: 5,
-    marginBottom: 12,
-  },
-  statusText: { fontSize: 12, fontWeight: "700" },
+    statusBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      alignSelf: "flex-start",
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 16,
+      gap: 5,
+      marginBottom: 12,
+    },
+    statusText: { fontSize: 12, fontWeight: "700" },
 
-  itemsPreview: { marginBottom: 14 },
-  itemText: { fontSize: 14, color: c.textBody, marginBottom: 3 },
+    itemsPreview: { marginBottom: 14 },
+    itemText: { fontSize: 14, color: c.textBody, marginBottom: 3 },
 
-  cardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderTopWidth: 1,
-    borderTopColor: c.borderSoft,
-    paddingTop: 12,
-  },
-  total: { fontSize: 18, fontWeight: "800", color: c.success },
+    cardFooter: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      borderTopWidth: 1,
+      borderTopColor: c.borderSoft,
+      paddingTop: 12,
+    },
+    total: { fontSize: 18, fontWeight: "800", color: c.success },
 
-  actions: { flexDirection: "row", alignItems: "center", gap: 8 },
-  actionBtn: {
-    minWidth: 40,
-    height: 40,
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: c.surfaceAlt,
-    borderWidth: 1,
-  },
-  btnPreparing: { borderColor: c.infoBorder },
-  btnReady: { borderColor: c.successBorder },
-  btnCancel: { borderColor: c.dangerBorder },
-  btnDelivered: {
-    flexDirection: "row",
-    gap: 6,
-    paddingHorizontal: 12,
-    borderColor: c.border,
-  },
-  deliveredText: { fontSize: 13, fontWeight: "700", color: c.text },
+    actions: { flexDirection: "row", alignItems: "center", gap: 8 },
+    actionBtn: {
+      minWidth: 40,
+      height: 40,
+      borderRadius: 14,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: c.surfaceAlt,
+      borderWidth: 1,
+    },
+    btnPreparing: {
+      flexDirection: "row",
+      gap: 6,
+      paddingHorizontal: 10,
+      borderColor: c.infoBorder,
+    },
+    preparingText: { fontSize: 13, fontWeight: "700", color: c.info },
+    btnReady: { borderColor: c.successBorder },
+    btnCancel: { borderColor: c.dangerBorder },
+    btnDelivered: {
+      flexDirection: "row",
+      gap: 6,
+      paddingHorizontal: 12,
+      borderColor: c.border,
+    },
+    deliveredText: { fontSize: 13, fontWeight: "700", color: c.text },
 
-  empty: { flex: 1, justifyContent: "center", alignItems: "center", zIndex: 1 },
-  emptyIconBox: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: c.infoSoft,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: c.text,
-    marginBottom: 8,
-  },
-  emptyText: { fontSize: 15, color: c.textSecondary, textAlign: "center" },
+    empty: {
+      position: "absolute",
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 2,
+    },
+    emptyIconBox: {
+      width: 88,
+      height: 88,
+      borderRadius: 44,
+      backgroundColor: c.infoSoft,
+      justifyContent: "center",
+      alignItems: "center",
+      marginBottom: 20,
+    },
+    emptyTitle: {
+      fontSize: 20,
+      fontWeight: "800",
+      color: c.text,
+      marginBottom: 8,
+      textAlign: "center",
+      paddingHorizontal: 24,
+    },
+    emptyText: {
+      fontSize: 15,
+      color: c.textSecondary,
+      textAlign: "center",
+      paddingHorizontal: 24,
+    },
 
-  // ✅ BARRA FLOTANTE IDÉNTICA AL MENÚ
-  floatingNavWrapper: {
-    position: "absolute",
-    bottom: 32,
-    left: 24,
-    right: 24,
-    zIndex: 10,
-    alignItems: "center",
-  },
-  floatingNav: {
-    flexDirection: "row",
-    backgroundColor: c.surface,
-    borderRadius: 32,
-    padding: 8,
-    shadowColor: c.shadow,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    elevation: 12,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-  },
-  navItemActive: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingVertical: 12,
-    borderRadius: 24,
-  },
-  navItemInactive: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingVertical: 12,
-    borderRadius: 24,
-  },
-  navTextActive: { fontSize: 12, fontWeight: "700", color: c.accent },
-  navTextInactive: { fontSize: 12, fontWeight: "600", color: c.textMuted },
-});
+    floatingNavWrapper: {
+      position: "absolute",
+      bottom: 32,
+      left: 24,
+      right: 24,
+      zIndex: 10,
+      alignItems: "center",
+    },
+    floatingNav: {
+      flexDirection: "row",
+      backgroundColor: c.surface,
+      borderRadius: 32,
+      padding: 8,
+      shadowColor: c.shadow,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.12,
+      shadowRadius: 24,
+      elevation: 12,
+      borderWidth: 1,
+      borderColor: c.borderSoft,
+    },
+    navItemActive: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
+      paddingVertical: 12,
+      borderRadius: 24,
+    },
+    navItemInactive: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
+      paddingVertical: 12,
+      borderRadius: 24,
+    },
+    navTextActive: { fontSize: 12, fontWeight: "700", color: c.accent },
+    navTextInactive: { fontSize: 12, fontWeight: "600", color: c.textMuted },
+  });

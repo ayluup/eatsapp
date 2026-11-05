@@ -13,14 +13,17 @@ export default function AdminLayout() {
         contentStyle: { backgroundColor: colors.background },
       }}
     >
-      <Stack.Screen name="menu" />
-      <Stack.Screen name="pedidos" />
-      <Stack.Screen name="historial" />
-      <Stack.Screen name="agregar" />
-      <Stack.Screen name="editar" />
-      <Stack.Screen name="perfil" />
-      <Stack.Screen name="asistente" />
-      {/* Solo el superadmin decide quién es admin */}
+      <Stack.Protected guard={role === "admin"}>
+        <Stack.Screen name="menu" />
+        <Stack.Screen name="pedidos" />
+        <Stack.Screen name="historial" />
+        <Stack.Screen name="agregar" />
+        <Stack.Screen name="editar" />
+        <Stack.Screen name="asistente" />
+      </Stack.Protected>
+      <Stack.Protected guard={role === "admin" || role === "superadmin"}>
+        <Stack.Screen name="perfil" />
+      </Stack.Protected>
       <Stack.Protected guard={role === "superadmin"}>
         <Stack.Screen name="usuarios" />
       </Stack.Protected>

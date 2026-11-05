@@ -12,7 +12,12 @@ import {
   View,
 } from "react-native";
 import { useAuth } from "../../context/AuthContext";
-import { cancelOrder, HIDEABLE_STATUSES, hideOrder } from "../../services/orders";
+import {
+  cancelOrder,
+  deleteCancelledOrder,
+  HIDEABLE_STATUSES,
+  hideOrder,
+} from "../../services/orders";
 import { supabase } from "../../services/supabase";
 import {
   formatPrice,
@@ -121,11 +126,12 @@ export default function StudentMisPedidosScreen() {
     );
   };
 
-  // Solo se sacan de "Mis pedidos": el kiosco los sigue viendo en su historial
   const confirmDelete = (order: Order) => {
     showAlert(
       "Eliminar pedido",
-      `¿Querés eliminar el pedido ${order.id_pedido} de tu lista?`,
+      order.estado === "cancelled"
+        ? `¿Querés eliminar definitivamente el pedido cancelado ${order.id_pedido}? No aparecerá más en el historial.`
+        : `¿Querés eliminar el pedido ${order.id_pedido} de tu lista?`,
       [
         { text: "No", style: "cancel" },
         {
@@ -134,7 +140,11 @@ export default function StudentMisPedidosScreen() {
           onPress: async () => {
             setDeletingId(order.id);
             try {
-              await hideOrder(order.id);
+              if (order.estado === "cancelled") {
+                await deleteCancelledOrder(order.id);
+              } else {
+                await hideOrder(order.id);
+              }
               setOrders((prev) => prev.filter((o) => o.id !== order.id));
             } catch (err: any) {
               showAlert("No se pudo eliminar", err?.message ?? "Probá de nuevo");

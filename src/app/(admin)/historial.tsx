@@ -25,6 +25,7 @@ import {
 } from "../../constants/orders";
 import { ThemeColors } from "../../constants/theme";
 import { useThemedStyles } from "../../hooks/use-themed-styles";
+import { showAlert } from "../../components/app-alert";
 
 const PERIODS = [
   { label: "Hoy", dias: 1 },
@@ -63,6 +64,7 @@ export default function AdminHistorialScreen() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Se carga al entrar y cada vez que cambia el período
   useFocusEffect(
@@ -79,6 +81,48 @@ export default function AdminHistorialScreen() {
     if (d === dias) return;
     setLoading(true);
     setDias(d);
+  };
+
+  const deleteCancelledOrder = async (order: Order) => {
+    if (deletingId) return;
+    setDeletingId(order.id);
+    const { data, error } = await supabase
+      .from("pedidos")
+      .delete()
+      .eq("id", order.id)
+      .eq("estado", "cancelled")
+      .select("id")
+      .maybeSingle();
+    setDeletingId(null);
+
+    if (error) {
+      console.error("Error eliminando pedido cancelado:", error.message);
+      showAlert("Error", "No se pudo eliminar el pedido cancelado.");
+      return;
+    }
+    if (!data) {
+      showAlert(
+        "Pedido no eliminado",
+        "Solo se pueden eliminar pedidos que estén cancelados.",
+      );
+      return;
+    }
+    setOrders((current) => current.filter((item) => item.id !== order.id));
+  };
+
+  const confirmDeleteCancelledOrder = (order: Order) => {
+    showAlert(
+      "Eliminar pedido cancelado",
+      `¿Querés eliminar definitivamente el pedido ${order.id_pedido}? Esta acción no se puede deshacer.`,
+      [
+        { text: "No", style: "cancel" },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: () => deleteCancelledOrder(order),
+        },
+      ],
+    );
   };
 
   const summary = summarizeSales(orders);
@@ -242,6 +286,28 @@ export default function AdminHistorialScreen() {
                         {config.label}
                       </Text>
                     </View>
+                    {order.estado === "cancelled" && (
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.deleteOrderBtn,
+                          pressed && styles.deleteOrderBtnPressed,
+                        ]}
+                        onPress={() => confirmDeleteCancelledOrder(order)}
+                        disabled={deletingId !== null}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Eliminar pedido cancelado ${order.id_pedido}`}
+                      >
+                        {deletingId === order.id ? (
+                          <ActivityIndicator size="small" color={c.danger} />
+                        ) : (
+                          <Ionicons
+                            name="trash-outline"
+                            size={18}
+                            color={c.danger}
+                          />
+                        )}
+                      </Pressable>
+                    )}
                   </View>
                 </View>
               );
@@ -397,6 +463,16 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   orderId: { fontSize: 14, fontWeight: "800", color: c.text },
   orderItems: { fontSize: 13, color: c.textBody, marginVertical: 2 },
   orderRight: { alignItems: "flex-end", gap: 6 },
+  deleteOrderBtn: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 10,
+    backgroundColor: c.dangerSoft,
+    marginTop: 2,
+  },
+  deleteOrderBtnPressed: { opacity: 0.7 },
   orderTotal: { fontSize: 15, fontWeight: "800", color: c.success },
   strike: { textDecorationLine: "line-through", color: c.textMuted },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },

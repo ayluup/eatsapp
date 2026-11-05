@@ -6,6 +6,7 @@ export default function Index() {
 
   if (recovering) return <Redirect href="/restablecer" />;
   if (!session) return <Redirect href="/(auth)/login" />;
+  if (role === "superadmin") return <Redirect href="/(admin)/usuarios" />;
   return (
     <Redirect href={isAdminRole(role) ? "/(admin)/menu" : "/(student)/menu"} />
   );
